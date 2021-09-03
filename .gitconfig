@@ -1,7 +1,7 @@
 [user]
   # ~/.gitconfig_local
 [include]
-  path = ~/dotfiles/.gitconfig_local
+  path = ~/.dotfiles/.gitconfig_local
 [httpAuth]
   empty = true
 [http]

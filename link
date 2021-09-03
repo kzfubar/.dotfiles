@@ -1,4 +1,4 @@
 #! /bin/sh
 
-ln -s -f ~/dotfiles/.vimrc ~/.vimrc
-ln -s -f ~/dotfiles/.gitconfig ~/.gitconfig
+ln -s -f ~/.dotfiles/.vimrc ~/.vimrc
+ln -s -f ~/.dotfiles/.gitconfig ~/.gitconfig

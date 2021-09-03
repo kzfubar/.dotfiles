@@ -2,3 +2,41 @@
   # ~/.gitconfig_local
 [include]
   path = ~/dotfiles/.gitconfig_local
+[httpAuth]
+  empty = true
+[http]
+  emptyAuth = true
+[push]
+  default = simple
+[pull]
+  rebase = true
+[pretty]
+  onelinedetail = %C(bold red)%h %Creset%s %C(bold green)%aN %C(bold blue)(%ar)%Creset%C(yellow)%d%Creset
+[alias]
+  alias = ! git config --get-regexp ^alias\\. | sed -e s/^alias\\.// -e s/\\ /\\ =\\ /
+  st = ! git files && echo \"\" && git last && echo \"\" && git wt && git todo
+  can = commit --amend --no-edit
+  unstage = reset HEAD --
+  ri = rebase -i
+  last = ! git log -1 HEAD | cat
+  lg = log --pretty=onelinedetail
+  co = checkout
+  files = ! git show --pretty= --name-only | cat
+  um = branch -u origin/master
+  ca = commit --amend
+  bd = branch -D
+  delbr = ! git branch | grep -v master | xargs git branch -D
+  br = ! git branch | cat
+  pl = pull --rebase
+  rename = branch -m
+  cpc = ! git add . && git -c core.editor=true cherry-pick --continue
+  chop = reset --hard HEAD^
+  rsmaster = ! git checkout master && git fetch origin && git reset --hard origin/master
+  cg = config --global
+  cp = cherry-pick
+  wt = status
+  acp = ! git add . && git can && git prfm
+  todo = ! git diff | grep -v -i todouble | grep -i todo
+  acpnp = ! git add . && git unstage pom.xml && git can && git prfm
+  acpm = ! git acp && mvn sputnik:local
+  acm = ! git add . && git can && mvn sputnik:local

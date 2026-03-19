@@ -1,2 +1,98 @@
-.gitconfig_local
+############################
+# Private / sensitive files
+############################
 
+# Git config overrides
+.gitconfig.local
+.gitconfig.work
+.gitconfig.personal
+
+# SSH / GPG
+.ssh/
+.gnupg/
+
+# Env / secrets
+.env
+.env.*
+*.env
+
+# API keys / credentials
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.credentials
+*.secret
+
+############################
+# Shell history / local state
+############################
+
+.bash_history
+.zsh_history
+.zsh_sessions/
+.history
+
+############################
+# OS-specific junk
+############################
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+############################
+# Editor / IDE
+############################
+
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+############################
+# Logs / temp files
+############################
+
+*.log
+*.tmp
+*.cache
+.cache/
+tmp/
+
+############################
+# Package managers / runtime junk
+############################
+
+node_modules/
+dist/
+build/
+
+############################
+# Tool-specific local configs
+############################
+
+# direnv
+.envrc
+
+# Python virtualenvs
+.venv/
+venv/
+
+# Docker
+.docker/
+
+############################
+# Dotfile templates (optional)
+############################
+
+# If you keep templates, allow examples but ignore real ones
+*.local
+!*.example

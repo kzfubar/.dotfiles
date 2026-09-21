@@ -6,7 +6,7 @@ step() { printf '\n==> %s\n' "$*"; }
 
 require_dotfiles_location() {
 	if [ "$(pwd -P)" != "$(cd "$DOTFILES" 2>/dev/null && pwd -P)" ]; then
-		echo "Clone this repo to $DOTFILES first; link expects it there." >&2
+		echo "Clone this repo to $DOTFILES first; link.sh expects it there." >&2
 		exit 1
 	fi
 }
@@ -34,11 +34,11 @@ install_claude_code() {
 	fi
 }
 
-# Creates the gitignored .gitconfig_local with an empty identity, plus any
+# Creates the gitignored .gitconfig.local with an empty identity, plus any
 # platform-specific git config passed as $1.
 stub_gitconfig_local() {
 	step "git identity"
-	local f="$DOTFILES/.gitconfig_local"
+	local f="$DOTFILES/.gitconfig.local"
 	if [ -f "$f" ]; then
 		echo "$f exists"
 		return
@@ -60,5 +60,5 @@ stub_board_config() {
 
 link_dotfiles() {
 	step "symlinks"
-	"$DOTFILES/link"
+	"$DOTFILES/link.sh"
 }

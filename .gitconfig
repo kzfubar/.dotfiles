@@ -28,4 +28,4 @@
 	excludesfile = ~/.gitignore_global
 # Machine-specific identity and overrides; loaded last so it wins.
 [include]
-  path = ~/.dotfiles/.gitconfig_local
+  path = ~/.dotfiles/.gitconfig.local

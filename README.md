@@ -2,7 +2,7 @@
 
 Setup for a new machine: shell, git, vim, Claude Code, and (on macOS) apps via Homebrew.
 
-The repo must be cloned to `~/.dotfiles`; `link` and the configs expect that path.
+The repo must be cloned to `~/.dotfiles`; `link.sh` and the configs expect that path.
 
 ```sh
 git clone https://github.com/kzfubar/dotfiles.git ~/.dotfiles
@@ -18,7 +18,7 @@ HTTPS because SSH keys aren't set up yet on a fresh machine. Switch afterwards w
 ```
 
 Installs the Xcode Command Line Tools, Homebrew, everything in `Brewfile`, oh-my-zsh with zsh-z,
-and Claude Code, points gpg-agent at `pinentry-mac`, then runs `link`. Safe to re-run, but re-runs
+and Claude Code, points gpg-agent at `pinentry-mac`, then runs `link.sh`. Safe to re-run, but re-runs
 also upgrade any outdated Brewfile entries.
 
 ## Ubuntu
@@ -30,11 +30,11 @@ sudo apt-get install -y git curl
 
 Command-line setup only: apt basics (zsh, vim, direnv, jq, gnupg, build tools), GitHub CLI,
 current Node.js (NodeSource), uv, oh-my-zsh with zsh-z, and Claude Code; sets zsh as the login
-shell and runs `link`. The Brewfile's apps and services are macOS-only. Safe to re-run.
+shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe to re-run.
 
 ## After bootstrapping
 
-1. **Git identity.** Fill in `name` and `email` in `~/.dotfiles/.gitconfig_local` (gitignored).
+1. **Git identity.** Fill in `name` and `email` in `~/.dotfiles/.gitconfig.local` (gitignored).
    On Ubuntu this file also swaps the macOS keychain credential helper for `gh`.
 2. **GPG signing.** Commits are signed with key `44240957A9B01A730B273007F71DA10F3A0DEEB2`, so
    commits fail until it's imported: export with `gpg --export-secret-keys --armor <key>` on the
@@ -55,7 +55,7 @@ shell and runs `link`. The Brewfile's apps and services are macOS-only. Safe to 
 |---|---|
 | `.zshrc` | `~/.zshrc` |
 | `.vimrc` | `~/.vimrc` |
-| `.gitconfig` | `~/.gitconfig` (includes `.gitconfig_local` last) |
+| `.gitconfig` | `~/.gitconfig` (includes `.gitconfig.local` last) |
 | `.gitignore_global` | `~/.gitignore_global` |
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` |
 | `claude-settings.json` | `~/.claude/settings.json` |

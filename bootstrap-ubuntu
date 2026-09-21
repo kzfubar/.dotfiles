@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Ubuntu bootstrap: apt packages, GitHub CLI, uv, oh-my-zsh, Claude Code,
+# Ubuntu bootstrap: apt packages, GitHub CLI, Node.js, uv, oh-my-zsh, Claude Code,
 # zsh as login shell, and symlinks. Command-line setup only; the Brewfile's
 # apps and services are macOS-only. Safe to re-run. For macOS, use
 # bootstrap-macos.
@@ -32,6 +32,14 @@ else
 	sudo apt-get install -y gh
 fi
 
+step "Node.js (current, from NodeSource)"
+if command -v node >/dev/null && [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 24 ]; then
+	echo "already installed: $(node --version)"
+else
+	curl -fsSL https://deb.nodesource.com/setup_current.x | sudo -E bash -
+	sudo apt-get install -y nodejs
+fi
+
 step "uv"
 if [ -x "$HOME/.local/bin/uv" ]; then
 	echo "already installed"
@@ -45,6 +53,7 @@ stub_gitconfig_local '[credential]
   helper =
   helper = !gh auth git-credential
 '
+stub_board_config
 link_dotfiles
 
 step "login shell"

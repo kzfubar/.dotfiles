@@ -47,6 +47,17 @@ stub_gitconfig_local() {
 	echo "Created $f; fill in name and email."
 }
 
+stub_board_config() {
+	step "gh-board config"
+	local f="$DOTFILES/tools/gh-board/board.config.json"
+	if [ -f "$f" ]; then
+		echo "$f exists"
+		return
+	fi
+	cp "$DOTFILES/tools/gh-board/board.config.example.json" "$f"
+	echo "Created $f; fill in org and projectNumber."
+}
+
 link_dotfiles() {
 	step "symlinks"
 	"$DOTFILES/link"

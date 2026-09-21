@@ -49,6 +49,7 @@ fi
 install_oh_my_zsh
 install_claude_code
 stub_gitconfig_local
+stub_board_config
 link_dotfiles
 
 step "Done. Manual steps are in README.md."

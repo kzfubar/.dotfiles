@@ -28,9 +28,9 @@ sudo apt-get install -y git curl
 ~/.dotfiles/bootstrap-ubuntu
 ```
 
-Command-line setup only: apt basics (zsh, vim, direnv, jq, gnupg, build tools), GitHub CLI, uv,
-oh-my-zsh with zsh-z, and Claude Code; sets zsh as the login shell and runs `link`. The Brewfile's
-apps and services are macOS-only. Safe to re-run.
+Command-line setup only: apt basics (zsh, vim, direnv, jq, gnupg, build tools), GitHub CLI,
+current Node.js (NodeSource), uv, oh-my-zsh with zsh-z, and Claude Code; sets zsh as the login
+shell and runs `link`. The Brewfile's apps and services are macOS-only. Safe to re-run.
 
 ## After bootstrapping
 
@@ -44,7 +44,10 @@ apps and services are macOS-only. Safe to re-run.
    which is a symlink into this repo.
 5. **iTerm (macOS).** Enable iTerm's Claude Code integration so `~/.config/iterm2/cc-status`
    exists; the Claude hooks skip it until then.
-6. Open a new terminal.
+6. **gh-board.** Fill in `org` and `projectNumber` in `~/.dotfiles/tools/gh-board/board.config.json`
+   (gitignored), or set `BOARD_ORG` / `BOARD_PROJECT`. Needs `gh auth login` with the `project`,
+   `repo`, and `read:org` scopes.
+7. Open a new terminal.
 
 ## Layout
 
@@ -57,6 +60,8 @@ apps and services are macOS-only. Safe to re-run.
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` |
 | `claude-settings.json` | `~/.claude/settings.json` |
 | `claude-hooks/` | Referenced from `claude-settings.json` |
+| `claude-skills/*` | `~/.claude/skills/*`, one link per skill |
+| `tools/gh-board/board` | `~/.local/bin/board` |
 | `Brewfile` | Used by `bootstrap-macos` |
 
 Because these are symlinks, tools that write to them (`git config --global`, Claude Code's

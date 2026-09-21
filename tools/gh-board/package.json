@@ -1,0 +1,13 @@
+{
+  "name": "gh-board",
+  "version": "1.0.0",
+  "description": "CLI for reading and writing a GitHub Projects v2 board and the issues that back it, via the gh CLI.",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "board": "./board.ts"
+  },
+  "scripts": {
+    "board": "node board.ts"
+  }
+}

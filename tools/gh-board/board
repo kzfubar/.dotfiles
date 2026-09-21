@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Convenience wrapper so you can run `board ...` from any cwd, including through
+# a symlink on PATH (e.g. ~/.local/bin/board).
+# Requires Node >= 23.6 (native TypeScript) and an authenticated `gh` CLI.
+set -euo pipefail
+
+# Resolve symlinks so board.ts is found next to the *real* script, not next to
+# whatever symlink invoked us. `dirname "$0"` alone breaks when called via PATH.
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  dir="$(cd -P "$(dirname "$src")" && pwd)"
+  src="$(readlink "$src")"
+  case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+dir="$(cd -P "$(dirname "$src")" && pwd)"
+
+exec node "$dir/board.ts" "$@"

@@ -5,3 +5,7 @@ ln -s -f ~/.dotfiles/.gitconfig ~/.gitconfig
 
 mkdir -p ~/.claude
 ln -s -f ~/.dotfiles/CLAUDE.md ~/.claude/CLAUDE.md
+ln -s -f ~/.dotfiles/claude-settings.json ~/.claude/settings.json
+
+ln -s -f ~/.dotfiles/.zshrc ~/.zshrc
+ln -s -f ~/.dotfiles/.gitignore_global ~/.gitignore_global

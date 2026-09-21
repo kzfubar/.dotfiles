@@ -30,4 +30,4 @@
 [credential]
 	helper = osxkeychain
 [core]
-	excludesfile = /Users/kfu/.gitignore_global
+	excludesfile = ~/.gitignore_global

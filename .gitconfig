@@ -1,8 +1,5 @@
 [user]
 	signingkey = 44240957A9B01A730B273007F71DA10F3A0DEEB2
-  # ~/.gitconfig_local
-[include]
-  path = ~/.dotfiles/.gitconfig_local
 [httpAuth]
   empty = true
 [http]
@@ -31,3 +28,6 @@
 	helper = osxkeychain
 [core]
 	excludesfile = ~/.gitignore_global
+# Machine-specific identity and overrides; loaded last so it wins.
+[include]
+  path = ~/.dotfiles/.gitconfig_local

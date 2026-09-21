@@ -1,4 +1,4 @@
-tap "anthropics/tap"
+tap "anthropics/tap", trusted: { casks: ["ant"] }
 tap "homebrew/services"
 
 # CLI

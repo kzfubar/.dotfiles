@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+# macOS bootstrap: Xcode CLT, Homebrew + Brewfile, GPG pinentry, oh-my-zsh,
+# Claude Code, and symlinks. Safe to re-run; re-runs also upgrade outdated
+# Brewfile entries. For Ubuntu, use bootstrap-ubuntu.
+set -euo pipefail
+
+if [ "$(uname -s)" != Darwin ]; then
+	echo "bootstrap-macos is for macOS; use bootstrap-ubuntu on Linux." >&2
+	exit 1
+fi
+
+cd "$(dirname "$0")"
+. ./bootstrap-common.sh
+require_dotfiles_location
+
+step "Xcode Command Line Tools"
+if ! xcode-select -p >/dev/null 2>&1; then
+	xcode-select --install
+	echo "Re-run this script once the Command Line Tools finish installing."
+	exit 1
+fi
+echo "installed"
+
+step "Homebrew"
+if ! command -v brew >/dev/null; then
+	/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+if [ -x /opt/homebrew/bin/brew ]; then
+	eval "$(/opt/homebrew/bin/brew shellenv)"
+elif [ -x /usr/local/bin/brew ]; then
+	eval "$(/usr/local/bin/brew shellenv)"
+fi
+
+step "Brewfile"
+brew bundle install --file="$DOTFILES/Brewfile"
+
+step "gpg-agent pinentry"
+mkdir -p "$HOME/.gnupg"
+chmod 700 "$HOME/.gnupg"
+conf="$HOME/.gnupg/gpg-agent.conf"
+if grep -q '^pinentry-program' "$conf" 2>/dev/null; then
+	grep '^pinentry-program' "$conf"
+else
+	echo "pinentry-program $(brew --prefix)/bin/pinentry-mac" >> "$conf"
+	gpgconf --kill gpg-agent
+	echo "set to $(brew --prefix)/bin/pinentry-mac"
+fi
+
+install_oh_my_zsh
+install_claude_code
+stub_gitconfig_local
+link_dotfiles
+
+step "Done. Manual steps are in README.md."

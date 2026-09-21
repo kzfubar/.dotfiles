@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Ubuntu bootstrap: apt packages, GitHub CLI, uv, oh-my-zsh, Claude Code,
+# zsh as login shell, and symlinks. Command-line setup only; the Brewfile's
+# apps and services are macOS-only. Safe to re-run. For macOS, use
+# bootstrap-macos.
+set -euo pipefail
+
+if ! grep -qi '^ID=ubuntu' /etc/os-release 2>/dev/null; then
+	echo "bootstrap-ubuntu is for Ubuntu; use bootstrap-macos on macOS." >&2
+	exit 1
+fi
+
+cd "$(dirname "$0")"
+. ./bootstrap-common.sh
+require_dotfiles_location
+
+step "apt packages"
+sudo apt-get update
+sudo apt-get install -y build-essential curl direnv git gnupg jq tree unzip vim zsh
+
+step "GitHub CLI"
+if command -v gh >/dev/null; then
+	echo "already installed"
+else
+	keyring=/etc/apt/keyrings/githubcli-archive-keyring.gpg
+	sudo mkdir -p -m 755 /etc/apt/keyrings
+	curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo tee "$keyring" >/dev/null
+	sudo chmod go+r "$keyring"
+	echo "deb [arch=$(dpkg --print-architecture) signed-by=$keyring] https://cli.github.com/packages stable main" \
+		| sudo tee /etc/apt/sources.list.d/github-cli.list >/dev/null
+	sudo apt-get update
+	sudo apt-get install -y gh
+fi
+
+step "uv"
+if [ -x "$HOME/.local/bin/uv" ]; then
+	echo "already installed"
+else
+	curl -LsSf https://astral.sh/uv/install.sh | env UV_NO_MODIFY_PATH=1 sh
+fi
+
+install_oh_my_zsh
+install_claude_code
+stub_gitconfig_local '[credential]
+  helper =
+  helper = !gh auth git-credential
+'
+link_dotfiles
+
+step "login shell"
+zsh_path="$(command -v zsh)"
+if [ "$(getent passwd "$USER" | cut -d: -f7)" = "$zsh_path" ]; then
+	echo "already zsh"
+else
+	sudo chsh -s "$zsh_path" "$USER"
+	echo "set to $zsh_path; takes effect on next login"
+fi
+
+step "Done. Manual steps are in README.md."

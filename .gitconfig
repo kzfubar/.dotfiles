@@ -9,8 +9,6 @@
 	autoSetupRemote = true
 [pull]
   rebase = true
-[pretty]
-  onelinedetail = %C(bold red)%h %Creset%s %C(bold green)%aN %C(bold blue)(%ar)%Creset%C(yellow)%d%Creset
 [alias]
   st = ! git files && echo \"\" && git last && echo \"\" && git wt && git todo
   last = ! git log -1 HEAD | cat

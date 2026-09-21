@@ -5,6 +5,13 @@
     "sessionUrl": false
   },
   "permissions": {
+    "allow": [
+      "Bash(brew install:*)",
+      "WebSearch",
+      "Bash(board list:*)",
+      "Bash(board view:*)",
+      "Bash(board fields)"
+    ],
     "deny": [
       "Read(//**/.env)",
       "Read(//**/.env.local)",

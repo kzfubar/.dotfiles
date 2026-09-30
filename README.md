@@ -62,6 +62,7 @@ shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe 
 | `claude-hooks/` | Referenced from `claude-settings.json` |
 | `claude-skills/*` | `~/.claude/skills/*`, one link per skill |
 | `tools/gh-board/board` | `~/.local/bin/board` |
+| `tools/tnet/tnet` | `~/.local/bin/tnet` |
 | `Brewfile` | Used by `bootstrap-macos` |
 
 Because these are symlinks, tools that write to them (`git config --global`, Claude Code's

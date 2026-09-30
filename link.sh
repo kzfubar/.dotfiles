@@ -16,3 +16,4 @@ done
 
 mkdir -p ~/.local/bin
 ln -s -f ~/.dotfiles/tools/gh-board/board ~/.local/bin/board
+ln -s -f ~/.dotfiles/tools/tnet/tnet ~/.local/bin/tnet

@@ -1,0 +1,97 @@
+#!/usr/bin/env bash
+# tnet: shortcuts for switching between Tailscale tailnets.
+#
+#   tnet              show the current tailnet and the aliases
+#   tnet <alias>      switch to that tailnet, then run its follow-up steps
+#   tnet dns          flush the OS DNS cache
+set -euo pipefail
+
+# alias -> tailnet name, as shown by `tailscale switch --list`
+tailnet_for() {
+	case "$1" in
+	kz) echo kzfubar.github ;;
+	as) echo autonomous-synthesis.org.github ;;
+	*) return 1 ;;
+	esac
+}
+ALIASES=(kz as)
+
+# Host that must resolve after switching to kzfubar.github.
+DROPLET=viper.cetacean-viper.ts.net
+
+current() {
+	tailscale status --json | jq -r '.CurrentTailnet.Name // empty'
+}
+
+flush_dns() {
+	echo "flushing DNS cache (sudo)"
+	case "$(uname -s)" in
+	Darwin)
+		sudo dscacheutil -flushcache
+		sudo killall -HUP mDNSResponder
+		;;
+	Linux)
+		sudo resolvectl flush-caches
+		;;
+	esac
+}
+
+resolves() {
+	case "$(uname -s)" in
+	Darwin) dscacheutil -q host -a name "$1" | grep -q '^ip_address' ;;
+	*) getent hosts "$1" >/dev/null ;;
+	esac
+}
+
+# Wait until tailscaled reports it is running on the given tailnet.
+wait_for() {
+	local target=$1 i
+	for i in $(seq 1 20); do
+		if [ "$(tailscale status --json | jq -r '"\(.BackendState) \(.CurrentTailnet.Name // "")"')" = "Running $target" ]; then
+			return 0
+		fi
+		sleep 0.5
+	done
+	echo "tnet: timed out waiting for $target to come up" >&2
+	return 1
+}
+
+show() {
+	local cur a t mark
+	cur=$(current)
+	echo "current: ${cur:-none}"
+	for a in "${ALIASES[@]}"; do
+		t=$(tailnet_for "$a")
+		if [ "$t" = "$cur" ]; then mark='*'; else mark=' '; fi
+		printf ' %s %-4s %s\n' "$mark" "$a" "$t"
+	done
+}
+
+switch_to() {
+	local target
+	target=$(tailnet_for "$1") || target=$1
+	if [ "$(current)" != "$target" ]; then
+		tailscale switch "$target"
+	fi
+	wait_for "$target"
+
+	case "$target" in
+	kzfubar.github)
+		flush_dns
+		if resolves "$DROPLET"; then
+			echo "$DROPLET resolves"
+		else
+			echo "tnet: $DROPLET does not resolve yet" >&2
+			return 1
+		fi
+		;;
+	esac
+	echo "on $target"
+}
+
+case "${1:-}" in
+"" | ls | list) show ;;
+dns) flush_dns ;;
+-h | --help | help) sed -n '2,7s/^# \{0,1\}//p' "$0" ;;
+*) switch_to "$1" ;;
+esac

@@ -48,3 +48,11 @@ Personal defaults across all projects. A project's own CLAUDE.md overrides these
 ## Scope
 
 - Do what I asked. If you notice adjacent problems, mention them; don't fix them unprompted.
+
+## Dotfiles
+
+- `~/.dotfiles` is a git repo, and most of `~/.claude`, `~/.zshrc`, and `~/.gitconfig` are symlinks
+  into it. After changing anything there, commit and push it without asking: one commit per
+  logical change, in the repo's short lowercase message style, then `git push`.
+- If the working tree already had changes you didn't make, commit them separately rather than
+  folding them into yours.

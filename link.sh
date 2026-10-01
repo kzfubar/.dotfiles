@@ -24,3 +24,4 @@ done
 
 mkdir -p ~/.local/bin
 link ~/.dotfiles/tools/gh-board/board ~/.local/bin/board
+link ~/.dotfiles/tools/tnet/tnet ~/.local/bin/tnet

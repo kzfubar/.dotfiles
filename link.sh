@@ -1,18 +1,26 @@
 #! /bin/sh
 
-ln -s -f ~/.dotfiles/.vimrc ~/.vimrc
-ln -s -f ~/.dotfiles/.gitconfig ~/.gitconfig
+link() {
+	if [ -e "$2" ] && [ ! -L "$2" ]; then
+		echo "skip: $2 exists (not a symlink)"
+	else
+		ln -s -f -n "$1" "$2"
+	fi
+}
+
+link ~/.dotfiles/.vimrc ~/.vimrc
+link ~/.dotfiles/.gitconfig ~/.gitconfig
 
 mkdir -p ~/.claude/skills
-ln -s -f ~/.dotfiles/CLAUDE.md ~/.claude/CLAUDE.md
-ln -s -f ~/.dotfiles/claude-settings.json ~/.claude/settings.json
+link ~/.dotfiles/CLAUDE.md ~/.claude/CLAUDE.md
+link ~/.dotfiles/claude-settings.json ~/.claude/settings.json
 
-ln -s -f ~/.dotfiles/.zshrc ~/.zshrc
-ln -s -f ~/.dotfiles/.gitignore_global ~/.gitignore_global
+link ~/.dotfiles/.zshrc ~/.zshrc
+link ~/.dotfiles/.gitignore_global ~/.gitignore_global
 
 for skill in ~/.dotfiles/claude-skills/*/; do
-	ln -s -f -n "${skill%/}" ~/.claude/skills/"$(basename "$skill")"
+	link "${skill%/}" ~/.claude/skills/"$(basename "$skill")"
 done
 
 mkdir -p ~/.local/bin
-ln -s -f ~/.dotfiles/tools/gh-board/board ~/.local/bin/board
+link ~/.dotfiles/tools/gh-board/board ~/.local/bin/board

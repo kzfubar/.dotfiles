@@ -49,6 +49,7 @@ fi
 
 install_oh_my_zsh
 install_claude_code
+install_claude_plugins
 stub_gitconfig_local '[credential]
   helper =
   helper = !gh auth git-credential

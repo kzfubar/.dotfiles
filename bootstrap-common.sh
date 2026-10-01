@@ -62,3 +62,21 @@ link_dotfiles() {
 	step "symlinks"
 	"$DOTFILES/link.sh"
 }
+
+# Installs the marketplaces and plugins declared in claude-settings.json.
+install_claude_plugins() {
+	step "Claude plugins"
+	local settings="$DOTFILES/claude-settings.json"
+	local claude
+	claude="$(command -v claude || echo "$HOME/.local/bin/claude")"
+
+	jq -r '.extraKnownMarketplaces // {} | .[].source | .repo // .url // .path' "$settings" |
+		while read -r source; do
+			"$claude" plugin marketplace add "$source"
+		done
+
+	jq -r '.enabledPlugins // {} | to_entries[] | select(.value) | .key' "$settings" |
+		while read -r plugin; do
+			"$claude" plugin install "$plugin"
+		done
+}

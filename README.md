@@ -5,11 +5,11 @@ Setup for a new machine: shell, git, vim, Claude Code, and (on macOS) apps via H
 The repo must be cloned to `~/.dotfiles`; `link.sh` and the configs expect that path.
 
 ```sh
-git clone https://github.com/kzfubar/dotfiles.git ~/.dotfiles
+git clone https://github.com/kzfubar/.dotfiles.git ~/.dotfiles
 ```
 
 HTTPS because SSH keys aren't set up yet on a fresh machine. Switch afterwards with
-`git -C ~/.dotfiles remote set-url origin git@github.com:kzfubar/dotfiles.git`.
+`git -C ~/.dotfiles remote set-url origin git@github.com:kzfubar/.dotfiles.git`.
 
 ## macOS
 

@@ -5,7 +5,7 @@ description: Where personal config, shell aliases, shell functions, and helper s
 
 # Dotfiles
 
-Personal config lives in the git repo `~/.dotfiles` (remote `kzfubar/dotfiles`). The live files
+Personal config lives in the git repo `~/.dotfiles` (remote `kzfubar/.dotfiles`). The live files
 in `~` are symlinks into it, created by `~/.dotfiles/link.sh`. Edit the repo copy, never replace a
 symlink with a real file.
 

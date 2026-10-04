@@ -20,3 +20,6 @@ cl() {
   fi
   (cd "$dir" && claude "$@")
 }
+
+# g: short for git
+alias g=git

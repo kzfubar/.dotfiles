@@ -78,3 +78,5 @@ function! s:Ask(task, range, line1, line2) abort
   endif
 endfunction
 command! -range -nargs=+ Ask call s:Ask(<q-args>, <range>, <line1>, <line2>)
+nnoremap ,a :Ask<Space>
+xnoremap ,a :Ask<Space>

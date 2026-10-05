@@ -22,7 +22,7 @@ set hlsearch
 nnoremap ,<space> :nohlsearch<CR>
 
 " Highlight the line number every 10 lines above and below the cursor
-highlight TenLineNr ctermfg=yellow cterm=bold guifg=#e5c07b gui=bold
+highlight TenLineNr ctermfg=green cterm=bold guifg=#98c379 gui=bold
 set signcolumn=number
 call sign_define('TenMark', {'numhl': 'TenLineNr'})
 function! s:MarkTens() abort

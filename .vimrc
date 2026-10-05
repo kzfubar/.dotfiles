@@ -7,6 +7,7 @@ set softtabstop=2
 filetype plugin indent on
 
 set cursorline
+set mouse=a
 
 set guifont=Menlo:h14
 set autoindent

@@ -21,5 +21,8 @@ cl() {
   (cd "$dir" && claude "$@")
 }
 
+# fixkeys: turn off keyboard modes a crashed program left on, so ctrl keys work again
+fixkeys() { printf '\e[<u\e[>4;0m' }
+
 # g: short for git
 alias g=git

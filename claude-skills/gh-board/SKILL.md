@@ -79,6 +79,15 @@ The CLI is not tied to one board. It reads `board.config.json` (`org`,
 BOARD_ORG=some-org BOARD_PROJECT=7 board list
 ```
 
+`BOARD_ORG` names the board's owner, which can be an organization or a user. The
+memQ instrument server board is user-owned:
+
+```bash
+BOARD_ORG=kzfubar BOARD_PROJECT=1 board list
+```
+
+On that board, `repo#N` expands to `kzfubar/repo#N`.
+
 ## Requirements
 
 Node ≥ 23.6 (runs the TypeScript directly, no build step) and an authenticated

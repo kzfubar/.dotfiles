@@ -77,24 +77,27 @@ let _project: Project | null = null;
 function getProject(cfg: Config): Project {
   if (_project) return _project;
   // org comes from config (trusted) and num is a number, so inline them — this
-  // avoids gh's `-f` sending the Int! arg as a string.
+  // avoids gh's `-f` sending the Int! arg as a string. repositoryOwner resolves
+  // either an organization or a user, so `org` may name either.
   const data = graphql(`
     query {
-      organization(login: ${JSON.stringify(cfg.org)}) {
-        projectV2(number: ${cfg.projectNumber}) {
-          id
-          title
-          fields(first: 50) {
-            nodes {
-              ... on ProjectV2FieldCommon { id name dataType }
-              ... on ProjectV2SingleSelectField { id name options { id name } }
+      repositoryOwner(login: ${JSON.stringify(cfg.org)}) {
+        ... on ProjectV2Owner {
+          projectV2(number: ${cfg.projectNumber}) {
+            id
+            title
+            fields(first: 50) {
+              nodes {
+                ... on ProjectV2FieldCommon { id name dataType }
+                ... on ProjectV2SingleSelectField { id name options { id name } }
+              }
             }
           }
         }
       }
     }`);
-  const p = data?.data?.organization?.projectV2;
-  if (!p) fail(`Could not load project #${cfg.projectNumber} for org ${cfg.org}`);
+  const p = data?.data?.repositoryOwner?.projectV2;
+  if (!p) fail(`Could not load project #${cfg.projectNumber} for owner ${cfg.org}`);
   _project = { id: p.id, title: p.title, fields: p.fields.nodes };
   return _project;
 }
@@ -321,7 +324,7 @@ function jsonOut(flags: Args["flags"]): boolean {
 
 function cmdFields(cfg: Config): void {
   const p = getProject(cfg);
-  console.log(`Project: ${p.title} (org ${cfg.org}, #${cfg.projectNumber})\n`);
+  console.log(`Project: ${p.title} (owner ${cfg.org}, #${cfg.projectNumber})\n`);
   for (const f of p.fields) {
     const opts = f.options
       ? "  options: " + f.options.map((o) => o.name).join(" | ")
@@ -595,6 +598,10 @@ COMMANDS
 
 REFERENCES (<ref>)
   Full issue URL, or owner/repo#N, or repo#N (org assumed from board.config.json)
+
+ENVIRONMENT
+  BOARD_ORG      Board owner, an organization or a user (default: board.config.json "org")
+  BOARD_PROJECT  Project number under that owner (default: board.config.json "projectNumber")
 
 EXAMPLES
   board list --status development

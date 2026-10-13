@@ -555,7 +555,8 @@ function cmdAdd(cfg: Config, args: Args): void {
 function cmdState(cfg: Config, args: Args, action: "close" | "reopen"): void {
   const ref = parseRef(cfg, args._[0] ?? fail(`usage: board ${action} <ref>`));
   const a = ["issue", action, String(ref.number), "--repo", nwo(ref)];
-  const reason = flagStr(args.flags, "reason");
+  // gh spells it "not planned"; accept not_planned so the flag needs no quoting.
+  const reason = flagStr(args.flags, "reason")?.replaceAll("_", " ");
   if (action === "close" && reason) a.push("--reason", reason);
   gh(a);
   console.log(`${action}d: ${ref.url}`);

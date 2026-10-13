@@ -559,7 +559,7 @@ function cmdState(cfg: Config, args: Args, action: "close" | "reopen"): void {
   const reason = flagStr(args.flags, "reason")?.replaceAll("_", " ");
   if (action === "close" && reason) a.push("--reason", reason);
   gh(a);
-  console.log(`${action}d: ${ref.url}`);
+  console.log(`${action === "close" ? "closed" : "reopened"}: ${ref.url}`);
 }
 
 function multi(flags: Args["flags"], key: string): string[] {

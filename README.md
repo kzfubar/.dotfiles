@@ -41,7 +41,9 @@ shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe 
    old machine, then `gpg --import` on the new one.
 3. **SSH keys.** Copy or generate them in `~/.ssh`.
 4. **GitHub CLI.** Run `gh auth login`. Skip `gh auth setup-git`: it writes to `~/.gitconfig`,
-   which is a symlink into this repo.
+   which is a symlink into this repo. Then re-run the bootstrap: it clones the private
+   `kzfubar/user-harness` repo to `~/projects/user-harness` and installs its `uh` command, a step it
+   skips until `gh` is logged in.
 5. **iTerm (macOS).** Enable iTerm's Claude Code integration so `~/.config/iterm2/cc-status`
    exists; the Claude hooks skip it until then.
 6. **gh-board.** Fill in `org` and `projectNumber` in `~/.dotfiles/tools/gh-board/board.config.json`

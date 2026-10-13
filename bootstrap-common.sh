@@ -34,6 +34,26 @@ install_claude_code() {
 	fi
 }
 
+# Clones the private user-harness repo and installs its `uh` command. Needs `gh auth login`,
+# which happens after the first bootstrap on a fresh machine, so it skips until then.
+install_user_harness() {
+	step "user-harness (uh)"
+	local dir="$HOME/projects/user-harness"
+	if [ ! -d "$dir/.git" ]; then
+		if ! gh auth status >/dev/null 2>&1; then
+			echo "skipped: run gh auth login, then re-run this bootstrap"
+			return
+		fi
+		mkdir -p "$HOME/projects"
+		gh repo clone kzfubar/user-harness "$dir"
+	fi
+	if [ -x "$HOME/.local/bin/uh" ]; then
+		echo "already installed"
+	else
+		"$(command -v uv || echo "$HOME/.local/bin/uv")" tool install --editable "$dir"
+	fi
+}
+
 # Creates the gitignored .gitconfig.local with an empty identity, plus any
 # platform-specific git config passed as $1.
 stub_gitconfig_local() {

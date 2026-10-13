@@ -9,6 +9,9 @@ source $ZSH/oh-my-zsh.sh
 
 eval "$(direnv hook zsh)"
 
+# user-harness telemetry settings, written by `uh telemetry setup`
+[ -f "$HOME/.config/user-harness/telemetry.env" ] && source "$HOME/.config/user-harness/telemetry.env"
+
 # cl: run claude in ~/scratch, or in the given dir. Extra args go to claude.
 cl() {
   local dir

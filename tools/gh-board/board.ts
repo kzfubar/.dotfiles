@@ -63,7 +63,7 @@ function graphql(query: string, vars: Record<string, string> = {}): any {
 // Project schema (cached per invocation)
 // ---------------------------------------------------------------------------
 
-type FieldOption = { id: string; name: string };
+type FieldOption = { id: string; name: string; description?: string };
 type Field = {
   id: string;
   name: string;
@@ -89,7 +89,7 @@ function getProject(cfg: Config): Project {
             fields(first: 50) {
               nodes {
                 ... on ProjectV2FieldCommon { id name dataType }
-                ... on ProjectV2SingleSelectField { id name options { id name } }
+                ... on ProjectV2SingleSelectField { id name options { id name description } }
               }
             }
           }
@@ -326,10 +326,11 @@ function cmdFields(cfg: Config): void {
   const p = getProject(cfg);
   console.log(`Project: ${p.title} (owner ${cfg.org}, #${cfg.projectNumber})\n`);
   for (const f of p.fields) {
-    const opts = f.options
-      ? "  options: " + f.options.map((o) => o.name).join(" | ")
-      : "";
-    console.log(`• ${f.name}  [${f.dataType}]${opts ? "\n" + opts : ""}`);
+    console.log(`• ${f.name}  [${f.dataType}]`);
+    // An option's description is where a board records what the option means.
+    for (const o of f.options ?? []) {
+      console.log(`    - ${o.name}${o.description ? `: ${o.description}` : ""}`);
+    }
   }
 }
 
@@ -595,7 +596,7 @@ COMMANDS
   add <ref>                 Add an existing issue to the board
   close <ref> [--reason completed|not_planned]
   reopen <ref>
-  fields                    List board fields and single-select options
+  fields                    List board fields, their options, and what each option means
 
 REFERENCES (<ref>)
   Full issue URL, or owner/repo#N, or repo#N (org assumed from board.config.json)

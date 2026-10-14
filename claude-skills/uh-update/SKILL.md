@@ -45,8 +45,13 @@ The output lists one action per file. `add`, `update`, `merge` and `remove` need
   bring in the template's structural changes.
 - One home per rule. If the template moved a rule to another file (for example from `AGENTS.md` into
   `docs/agents/orchestration.md`), move the repo's copy of that rule too. Don't leave it in both places.
-- `.uh/harness-log.md`: keep every row from both sides. Ids are never reused or renumbered. If the template adds an
-  id that this repo already uses for a different row, stop and ask the user how to number it.
+- `.uh/harness-log.md`: keep every row from both sides. Template rows use `UH-nnn` ids and the project's own rows
+  use `HL-nnn`, so the two never collide.
+- A project `HL-` row that is really a template row gets the template's id. This covers older installs, which
+  numbered the template's rows `HL-001` and up, and features the project built under its own id before the
+  template adopted them. Same failure and same mechanism counts as a match. For each match, change the id in every
+  `<!-- HL-nnn -->` comment to the `UH-` id. Keep the old `HL-` row, marked `removed`, with the change column reading
+  "now UH-nnn", because ids are never reused. If you're unsure whether two rows match, ask.
 
 **`own`** files were added both here and in the template with different content. The repo's copy was kept and is
 now tracked as a local change. Diff it against `.uh/base/<path>` and tell the user what the template version does

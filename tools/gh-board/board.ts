@@ -39,18 +39,27 @@ function loadConfig(): Config {
 // gh helpers
 // ---------------------------------------------------------------------------
 
-function gh(args: string[], input?: string): string {
+type GhResult = { ok: true; out: string } | { ok: false; err: string };
+
+function ghTry(args: string[], input?: string): GhResult {
   try {
-    return execFileSync("gh", args, {
+    const out = execFileSync("gh", args, {
       encoding: "utf8",
       input,
       maxBuffer: 64 * 1024 * 1024,
     }).trim();
+    return { ok: true, out };
   } catch (err: any) {
     const stderr = err?.stderr?.toString?.() ?? "";
     const stdout = err?.stdout?.toString?.() ?? "";
-    fail(`gh ${args.join(" ")}\n${stderr || stdout || err?.message || err}`);
+    return { ok: false, err: String(stderr || stdout || err?.message || err) };
   }
+}
+
+function gh(args: string[], input?: string): string {
+  const r = ghTry(args, input);
+  if (!r.ok) fail(`gh ${args.join(" ")}\n${r.err}`);
+  return r.out;
 }
 
 function graphql(query: string, vars: Record<string, string> = {}): any {
@@ -224,6 +233,45 @@ function itemForRef(cfg: Config, ref: IssueRef): Item | null {
     ) ??
     null
   );
+}
+
+/**
+ * Add an issue to the board and return its item id. If the issue is already on
+ * the board (for example, a project's auto-add workflow got there first), return
+ * the existing item. That item is looked up on the issue itself, because
+ * `item-list` can lag behind a just-added item.
+ */
+function addToBoard(cfg: Config, url: string): string {
+  const args = [
+    "project",
+    "item-add",
+    String(cfg.projectNumber),
+    "--owner",
+    cfg.org,
+    "--url",
+    url,
+    "--format",
+    "json",
+  ];
+  const r = ghTry(args);
+  if (r.ok) return JSON.parse(r.out).id;
+  if (!/already exists/i.test(r.err)) fail(`gh ${args.join(" ")}\n${r.err}`);
+
+  const projectId = getProject(cfg).id;
+  const data = graphql(
+    `query($url: URI!) {
+      resource(url: $url) {
+        ... on Issue { projectItems(first: 50) { nodes { id project { id } } } }
+        ... on PullRequest { projectItems(first: 50) { nodes { id project { id } } } }
+      }
+    }`,
+    { url },
+  );
+  const nodes: Array<{ id: string; project: { id: string } }> =
+    data?.data?.resource?.projectItems?.nodes ?? [];
+  const existing = nodes.find((n) => n.project.id === projectId);
+  if (!existing) fail(`${url} is reported as on the board, but its item was not found`);
+  return existing.id;
 }
 
 function setItemField(
@@ -443,21 +491,7 @@ function cmdNew(cfg: Config, args: Args): void {
 
   const url = gh(createArgs).split("\n").pop()!.trim();
 
-  // Add to the board.
-  const added = JSON.parse(
-    gh([
-      "project",
-      "item-add",
-      String(cfg.projectNumber),
-      "--owner",
-      cfg.org,
-      "--url",
-      url,
-      "--format",
-      "json",
-    ]),
-  );
-  const itemId: string = added.id;
+  const itemId = addToBoard(cfg, url);
 
   // Set board fields if requested.
   const fieldFlags: Array<[string, string]> = [
@@ -537,20 +571,7 @@ function cmdSet(cfg: Config, args: Args, presetField?: string): void {
 
 function cmdAdd(cfg: Config, args: Args): void {
   const ref = parseRef(cfg, args._[0] ?? fail("usage: board add <ref>"));
-  const added = JSON.parse(
-    gh([
-      "project",
-      "item-add",
-      String(cfg.projectNumber),
-      "--owner",
-      cfg.org,
-      "--url",
-      ref.url,
-      "--format",
-      "json",
-    ]),
-  );
-  console.log(`added ${ref.url} to board (item ${added.id})`);
+  console.log(`added ${ref.url} to board (item ${addToBoard(cfg, ref.url)})`);
 }
 
 function cmdState(cfg: Config, args: Args, action: "close" | "reopen"): void {

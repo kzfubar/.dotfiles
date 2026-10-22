@@ -67,6 +67,45 @@ stub_gitconfig_local() {
 	echo "Created $f; fill in name and email."
 }
 
+# Commits are signed on every machine. A machine holding the shared GPG key signs with it;
+# any other machine gets its own SSH signing key, so private keys never leave the machine
+# they were made on. Run after stub_gitconfig_local.
+setup_signing_key() {
+	step "commit signing"
+	local f="$DOTFILES/.gitconfig.local"
+	local key="$HOME/.ssh/id_ed25519_signing"
+	local gpg_key
+	gpg_key="$(git config --file "$DOTFILES/.gitconfig" user.signingkey)"
+	if [ -z "$(git config --file "$f" gpg.format)" ]; then
+		if command -v gpg >/dev/null && gpg --list-secret-keys "$gpg_key" >/dev/null 2>&1; then
+			echo "signing with GPG key $gpg_key"
+			return
+		fi
+		if [ ! -f "$key" ]; then
+			mkdir -p "$HOME/.ssh"
+			chmod 700 "$HOME/.ssh"
+			ssh-keygen -q -t ed25519 -N '' -C "git signing $(hostname)" -f "$key"
+		fi
+		git config --file "$f" gpg.format ssh
+		git config --file "$f" user.signingkey "$key.pub"
+		git config --file "$f" gpg.ssh.allowedSignersFile "$HOME/.ssh/allowed_signers"
+		echo "Signing with $key. Add it to GitHub as a signing key (README step 2)."
+	else
+		echo "configured in $f"
+	fi
+
+	[ -f "$key.pub" ] || return 0
+
+	# allowed_signers lets `git log --show-signature` verify this machine's commits locally.
+	local email signers="$HOME/.ssh/allowed_signers"
+	email="$(git config --file "$f" user.email)"
+	if [ -z "$email" ]; then
+		echo "Fill in user.email in $f and re-run to record the key in $signers."
+	elif ! grep -qF "$(cut -d' ' -f2 "$key.pub")" "$signers" 2>/dev/null; then
+		printf '%s namespaces="git" %s\n' "$email" "$(cat "$key.pub")" >> "$signers"
+	fi
+}
+
 stub_board_config() {
 	step "gh-board config"
 	local f="$DOTFILES/tools/gh-board/board.config.json"

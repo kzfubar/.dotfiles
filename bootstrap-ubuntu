@@ -55,6 +55,7 @@ stub_gitconfig_local '[credential]
   helper =
   helper = !gh auth git-credential
 '
+setup_signing_key
 stub_board_config
 link_dotfiles
 

@@ -51,9 +51,17 @@ hooks run in Git Bash. Like `link.sh`, it skips files that already exist, so mov
 1. **Git identity.** Fill in `name` and `email` in `~/.dotfiles/.gitconfig.local` (gitignored).
    On Ubuntu and Windows this file also swaps the macOS keychain credential helper for `gh`; on
    Windows it also sets `core.autocrlf = false`, overriding Git for Windows' default.
-2. **GPG signing.** Commits are signed with key `44240957A9B01A730B273007F71DA10F3A0DEEB2`, so
-   commits fail until it's imported: export with `gpg --export-secret-keys --armor <key>` on the
-   old machine, then `gpg --import` on the new one.
+2. **Commit signing.** Every commit is signed. A machine holding GPG key
+   `44240957A9B01A730B273007F71DA10F3A0DEEB2` signs with it; any other machine gets its own SSH
+   signing key from the bootstrap, `~/.ssh/id_ed25519_signing`, set in `.gitconfig.local`. Private
+   keys are never copied between machines. Register a new key on GitHub once, so its commits show
+   as Verified, before pushing anything signed with it:
+   ```sh
+   gh auth refresh -h github.com -s admin:ssh_signing_key
+   gh ssh-key add ~/.ssh/id_ed25519_signing.pub --type signing --title "<machine name>"
+   ```
+   If the bootstrap ran before `user.email` was filled in, re-run it to record the key in
+   `~/.ssh/allowed_signers`, which `git log --show-signature` uses.
 3. **SSH keys.** Copy or generate them in `~/.ssh`.
 4. **GitHub CLI.** Run `gh auth login`. Skip `gh auth setup-git`: it writes to `~/.gitconfig`,
    which is a symlink into this repo. Then re-run the bootstrap: it clones the private

@@ -51,6 +51,7 @@ install_claude_code
 install_claude_plugins
 install_user_harness
 stub_gitconfig_local
+setup_signing_key
 stub_board_config
 link_dotfiles
 

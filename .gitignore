@@ -3,6 +3,7 @@
 ############################
 
 tools/gh-board/board.config.json
+tools/gform/gform.config.json
 # Git config overrides
 .gitconfig.local
 .gitconfig.work

@@ -1,0 +1,172 @@
+#!/usr/bin/env bash
+# gform: create Google Forms, each with a linked response Sheet, from a JSON spec.
+#
+#   gform create SPEC [--profile P] [--editor EMAIL]... [--record FILE]
+#                           create the form (SPEC may be - for stdin) and print the result
+#   gform ping [--profile P]  show which Google account a profile creates forms as
+#   gform profiles          list profiles
+#   gform setup NAME URL    add a profile for a web app deployment, or change its URL;
+#                           its token is copied to the clipboard for the TOKEN script property
+#
+# Profiles live in gform.config.json next to this script (gitignored, see
+# gform.config.example.json). README.md here covers deploying Code.gs; the google-forms
+# Claude skill covers the spec format.
+set -euo pipefail
+
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+	dir="$(cd -P "$(dirname "$src")" && pwd)"
+	src="$(readlink "$src")"
+	case "$src" in /*) ;; *) src="$dir/$src" ;; esac
+done
+DIR="$(cd -P "$(dirname "$src")" && pwd)"
+CONFIG="${GFORM_CONFIG:-$DIR/gform.config.json}"
+
+die() {
+	echo "gform: $*" >&2
+	exit 1
+}
+
+need_config() {
+	[ -f "$CONFIG" ] || die "no profiles yet; deploy Code.gs (see $DIR/README.md), then run: gform setup NAME URL"
+}
+
+# The named profile, else the config's default, else the only profile.
+resolve_profile() {
+	need_config
+	local p
+	p=$(jq -r --arg p "${1:-}" '
+		if $p != "" then $p
+		elif .default then .default
+		elif (.profiles | length) == 1 then (.profiles | keys[0])
+		else "" end' "$CONFIG")
+	[ -n "$p" ] || die "several profiles and no default; pass --profile"
+	jq -e --arg p "$p" '.profiles[$p].url // empty' "$CONFIG" >/dev/null ||
+		die "no profile named $p"
+	echo "$p"
+}
+
+# POST the request body on stdin to a profile's web app and print its JSON reply.
+# The web app answers a POST with a redirect, and curl -L follows it with the GET it needs.
+post() {
+	local url resp
+	url=$(jq -r --arg p "$1" '.profiles[$p].url' "$CONFIG")
+	resp=$(curl -sSL -H 'Content-Type: application/json' --data-binary @- "$url") ||
+		die "request to $url failed"
+	jq -e . >/dev/null 2>&1 <<<"$resp" ||
+		die "the web app did not answer with JSON; check the deployment runs as you with access set to Anyone"
+	if [ "$(jq -r '.ok' <<<"$resp")" != true ]; then
+		jq -r '.error // "unknown error"' <<<"$resp" >&2
+		exit 1
+	fi
+	echo "$resp"
+}
+
+cmd_create() {
+	local spec="" profile="" record="" editors=() p specfile
+	while [ $# -gt 0 ]; do
+		case "$1" in
+		--profile) profile=$2; shift 2 ;;
+		--editor) editors+=("$2"); shift 2 ;;
+		--record) record=$2; shift 2 ;;
+		-) spec=-; shift ;;
+		-*) die "unknown option $1" ;;
+		*) spec=$1; shift ;;
+		esac
+	done
+	[ -n "$spec" ] || die "usage: gform create SPEC [--profile P] [--editor EMAIL]... [--record FILE]"
+	p=$(resolve_profile "$profile")
+	specfile=$spec
+	if [ "$spec" = - ]; then
+		# A file rather than /dev/stdin, which a native Windows jq can't open.
+		specfile=$(mktemp)
+		trap "rm -f '$specfile'" EXIT
+		cat >"$specfile"
+	fi
+	[ -f "$specfile" ] || die "no such file: $spec"
+
+	local result
+	result=$(jq -n \
+		--slurpfile cfg "$CONFIG" \
+		--slurpfile spec "$specfile" \
+		--arg p "$p" \
+		--args '
+		$cfg[0].profiles[$p] as $prof
+		| {
+			action: "create",
+			token: $prof.token,
+			spec: $spec[0],
+			editors: (($prof.editors // []) + ($spec[0].editors // []) + $ARGS.positional),
+			folder_id: ($prof.folder_id // "" | if . == "" then null else . end)
+		}' ${editors[@]+"${editors[@]}"} | post "$p")
+
+	if [ -n "$record" ]; then
+		[ -f "$record" ] || echo '[]' >"$record"
+		local tmp="$record.tmp.$$"
+		jq --argjson r "$result" --arg p "$p" --arg spec "$spec" \
+			--arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+			. + [$r | del(.ok) + {profile: $p, spec: $spec, created: $created}]' \
+			"$record" >"$tmp" && mv "$tmp" "$record"
+	fi
+	jq 'del(.ok)' <<<"$result"
+	if [ "$(jq -r '.published' <<<"$result")" = false ]; then
+		echo "gform: the form was created but is not published; publish it from the edit link" >&2
+	fi
+}
+
+cmd_ping() {
+	local profile=""
+	[ "${1:-}" = --profile ] && profile=${2:-}
+	local p
+	p=$(resolve_profile "$profile")
+	jq -n --slurpfile cfg "$CONFIG" --arg p "$p" \
+		'{action: "ping", token: $cfg[0].profiles[$p].token}' |
+		post "$p" | jq -r --arg p "$p" '"\($p): creates forms as \(.account)"'
+}
+
+cmd_profiles() {
+	need_config
+	jq -r '.default as $d | .profiles | to_entries[]
+		| "\(if .key == $d then "*" else " " end) \(.key)\t\(.value.url)"' "$CONFIG"
+}
+
+copy_to_clipboard() {
+	case "$(uname -s)" in
+	Darwin) pbcopy ;;
+	MINGW* | MSYS* | CYGWIN*) clip.exe ;;
+	*)
+		if command -v wl-copy >/dev/null; then wl-copy
+		elif command -v xclip >/dev/null; then xclip -selection clipboard
+		else return 1
+		fi
+		;;
+	esac
+}
+
+cmd_setup() {
+	[ $# -eq 2 ] || die "usage: gform setup NAME URL"
+	local name=$1 url=$2 tmp="$CONFIG.tmp.$$"
+	case "$url" in https://script.google.com/*/exec) ;; *) die "URL should be a web app URL ending in /exec" ;; esac
+	[ -f "$CONFIG" ] || echo '{"profiles": {}}' >"$CONFIG"
+	# The token goes through the environment, not argv, and an existing one is kept.
+	GFORM_NEW_TOKEN=$(od -An -tx1 -N24 /dev/urandom | tr -d ' \n') \
+		jq --arg n "$name" --arg u "$url" '
+		.profiles[$n] = ({token: env.GFORM_NEW_TOKEN, editors: [], folder_id: ""}
+			+ (.profiles[$n] // {}) + {url: $u})
+		| .default //= $n' "$CONFIG" >"$tmp" && mv "$tmp" "$CONFIG"
+	if jq -j --arg n "$name" '.profiles[$n].token' "$CONFIG" | copy_to_clipboard; then
+		echo "profile $name saved; its token is on the clipboard"
+	else
+		echo "profile $name saved; no clipboard tool found, so copy its token from $CONFIG"
+	fi
+	echo "paste it as the TOKEN script property (Project Settings > Script properties), then run: gform ping --profile $name"
+}
+
+case "${1:-}" in
+create) shift; cmd_create "$@" ;;
+ping) shift; cmd_ping "$@" ;;
+profiles) cmd_profiles ;;
+setup) shift; cmd_setup "$@" ;;
+"" | -h | --help | help) sed -n '2,14s/^# \{0,1\}//p' "$0" ;;
+*) die "unknown command $1; see gform help" ;;
+esac

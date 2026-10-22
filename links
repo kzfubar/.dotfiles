@@ -13,3 +13,4 @@ claude-skills/*          .claude/skills
 
 tools/gh-board/board     .local/bin/board
 tools/tnet/tnet          .local/bin/tnet
+tools/gform/gform        .local/bin/gform

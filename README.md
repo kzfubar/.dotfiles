@@ -90,6 +90,7 @@ The links are listed once, in `links`, which both `link.sh` and `link.ps1` read.
 | `claude-skills/*` | `~/.claude/skills/*`, one link per skill |
 | `tools/gh-board/board` | `~/.local/bin/board` |
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |
+| `tools/gform/gform` | `~/.local/bin/gform` |
 | `Brewfile` | Used by `bootstrap-macos` |
 
 Because these are links, tools that write to them (`git config --global`, Claude Code's

@@ -22,8 +22,13 @@ function Link($src, $dst) {
 	if ($item -and @($item.Target)[0] -eq $src) { return }
 	# Delete() without arguments removes only the link, never the directory it points to.
 	if ($item) { $item.Delete() }
-	$type = if ((Get-Item -LiteralPath $src).PSIsContainer) { 'Junction' } else { 'SymbolicLink' }
-	New-Item -ItemType $type -Path $dst -Target $src | Out-Null
+	if ((Get-Item -LiteralPath $src).PSIsContainer) {
+		New-Item -ItemType Junction -Path $dst -Target $src | Out-Null
+	} else {
+		# Windows PowerShell's New-Item demands elevation even in Developer Mode; mklink doesn't.
+		cmd /c mklink "$dst" "$src" | Out-Null
+		if ($LASTEXITCODE -ne 0) { throw "mklink failed for $dst" }
+	}
 	Write-Host "linked: $dst"
 }
 

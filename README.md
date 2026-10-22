@@ -2,7 +2,7 @@
 
 Setup for a new machine: shell, git, vim, Claude Code, and (on macOS) apps via Homebrew.
 
-The repo must be cloned to `~/.dotfiles`; `link.sh` and the configs expect that path.
+The repo must be cloned to `~/.dotfiles`; `link.sh`, `link.ps1` and the configs expect that path.
 
 ```sh
 git clone https://github.com/kzfubar/.dotfiles.git ~/.dotfiles
@@ -32,10 +32,25 @@ Command-line setup only: apt basics (zsh, vim, direnv, jq, gnupg, build tools), 
 current Node.js (NodeSource), uv, oh-my-zsh with zsh-z, and Claude Code; sets zsh as the login
 shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe to re-run.
 
+## Windows
+
+Turn on Developer Mode first (Settings > System > For developers): linking a file needs it, or an
+elevated shell. Clone with Git for Windows (`winget install Git.Git`), then in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
+```
+
+Installs Git, GitHub CLI, Node.js, uv and jq with winget, and Claude Code with its own installer,
+then runs `link.ps1`: junctions for directories, symbolic links for files. No zsh: Claude Code's
+hooks run in Git Bash. Like `link.sh`, it skips files that already exist, so move an existing
+`~/.gitconfig`, `~/.claude/CLAUDE.md` or `~/.claude/settings.json` aside first. Safe to re-run.
+
 ## After bootstrapping
 
 1. **Git identity.** Fill in `name` and `email` in `~/.dotfiles/.gitconfig.local` (gitignored).
-   On Ubuntu this file also swaps the macOS keychain credential helper for `gh`.
+   On Ubuntu and Windows this file also swaps the macOS keychain credential helper for `gh`; on
+   Windows it also sets `core.autocrlf = false`, overriding Git for Windows' default.
 2. **GPG signing.** Commits are signed with key `44240957A9B01A730B273007F71DA10F3A0DEEB2`, so
    commits fail until it's imported: export with `gpg --export-secret-keys --armor <key>` on the
    old machine, then `gpg --import` on the new one.
@@ -53,9 +68,11 @@ shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe 
 
 ## Layout
 
+The links are listed once, in `links`, which both `link.sh` and `link.ps1` read.
+
 | File | Linked to |
 |---|---|
-| `.zshrc` | `~/.zshrc` |
+| `.zshrc` | `~/.zshrc` (not on Windows) |
 | `.vimrc` | `~/.vimrc` |
 | `.gitconfig` | `~/.gitconfig` (includes `.gitconfig.local` last) |
 | `.gitignore_global` | `~/.gitignore_global` |
@@ -67,5 +84,5 @@ shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe 
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |
 | `Brewfile` | Used by `bootstrap-macos` |
 
-Because these are symlinks, tools that write to them (`git config --global`, Claude Code's
+Because these are links, tools that write to them (`git config --global`, Claude Code's
 `/config`) edit the repo copy. Review `git status` here after changing settings.

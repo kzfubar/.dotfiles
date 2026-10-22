@@ -1,4 +1,5 @@
 #! /bin/sh
+# Creates the symlinks listed in links. Existing files that aren't symlinks are left alone.
 
 link() {
 	if [ -e "$2" ] && [ ! -L "$2" ]; then
@@ -8,20 +9,18 @@ link() {
 	fi
 }
 
-link ~/.dotfiles/.vimrc ~/.vimrc
-link ~/.dotfiles/.gitconfig ~/.gitconfig
-
-mkdir -p ~/.claude/skills
-link ~/.dotfiles/CLAUDE.md ~/.claude/CLAUDE.md
-link ~/.dotfiles/claude-settings.json ~/.claude/settings.json
-
-link ~/.dotfiles/.zshrc ~/.zshrc
-link ~/.dotfiles/.gitignore_global ~/.gitignore_global
-
-for skill in ~/.dotfiles/claude-skills/*/; do
-	link "${skill%/}" ~/.claude/skills/"$(basename "$skill")"
+grep -v -e '^#' -e '^[[:space:]]*$' ~/.dotfiles/links | while read -r src dst only; do
+	[ "$only" = windows ] && continue
+	case "$src" in
+	*/\*)
+		mkdir -p ~/"$dst"
+		for dir in ~/.dotfiles/"${src%\*}"*/; do
+			link "${dir%/}" ~/"$dst"/"$(basename "$dir")"
+		done
+		;;
+	*)
+		mkdir -p "$(dirname ~/"$dst")"
+		link ~/.dotfiles/"$src" ~/"$dst"
+		;;
+	esac
 done
-
-mkdir -p ~/.local/bin
-link ~/.dotfiles/tools/gh-board/board ~/.local/bin/board
-link ~/.dotfiles/tools/tnet/tnet ~/.local/bin/tnet

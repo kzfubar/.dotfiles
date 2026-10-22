@@ -1,0 +1,15 @@
+# Links created by link.sh (macOS, Ubuntu) and link.ps1 (Windows).
+# <source in ~/.dotfiles>  <target in ~>  [unix|windows: only on that platform]
+# A source ending in /* links each directory inside it into the target directory.
+
+.vimrc                   .vimrc
+.gitconfig               .gitconfig
+.gitignore_global        .gitignore_global
+.zshrc                   .zshrc               unix
+
+CLAUDE.md                .claude/CLAUDE.md
+claude-settings.json     .claude/settings.json
+claude-skills/*          .claude/skills
+
+tools/gh-board/board     .local/bin/board
+tools/tnet/tnet          .local/bin/tnet

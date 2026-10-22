@@ -40,8 +40,8 @@ Personal defaults across all projects. A project's own CLAUDE.md overrides these
   obstacle to work around — never reach for a subprocess to read one.
 - To add a key, append it through the shell with an empty value and tell me to fill it in:
   `printf 'NEW_KEY=\n' >> .env`. Add the same key to the committed `.env.example` in the same pass.
-- To change a value, target the key by name: `sed -i '' 's/^KEY=.*/KEY=newvalue/' .env`. Don't read
-  the file to find it first.
+- To change a value, target the key by name, in a form both BSD and GNU sed accept:
+  `sed -i.bak 's/^KEY=.*/KEY=newvalue/' .env && rm .env.bak`. Don't read the file to find it first.
 - Never print, echo, or summarize the contents of a `.env`, and never ask me to paste a credential
   into the chat. If a command fails on credentials, say which key is missing and stop.
 

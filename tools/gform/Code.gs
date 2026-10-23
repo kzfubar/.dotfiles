@@ -46,7 +46,15 @@ function create(req) {
     if (spec.confirmation) form.setConfirmationMessage(spec.confirmation);
     if (spec.collect_email) form.setCollectEmail(true);
     if (spec.one_response_per_user) form.setLimitOneResponsePerUser(true);
-    spec.items.forEach(function (it) { addItem(form, it); });
+    // Branches point at pages by title, so they are set once every page exists.
+    var pages = {};
+    var branching = [];
+    spec.items.forEach(function (it) {
+      var item = addItem(form, it);
+      if (it.type === 'page') pages[it.title] = item;
+      if (it.go_to) branching.push({ item: item, it: it });
+    });
+    branching.forEach(function (b) { setBranches(b.item, b.it, pages); });
 
     var fresh = !spec.sheet_id;
     var ss = fresh
@@ -134,7 +142,12 @@ function addItem(form, it) {
     case 'date': item = form.addDateItem(); break;
     case 'time': item = form.addTimeItem(); break;
     case 'datetime': item = form.addDateTimeItem(); break;
-    case 'grid': item = form.addGridItem().setRows(it.rows).setColumns(it.columns); break;
+    case 'grid':
+      item = form.addGridItem().setRows(it.rows).setColumns(it.columns);
+      if (it.one_per_column) {
+        item.setValidation(FormApp.createGridValidation().requireLimitOneResponsePerColumn().build());
+      }
+      break;
     case 'checkbox_grid':
       item = form.addCheckboxGridItem().setRows(it.rows).setColumns(it.columns);
       break;
@@ -144,6 +157,18 @@ function addItem(form, it) {
   item.setTitle(it.title);
   if (it.help) item.setHelpText(it.help);
   if (it.required && QUESTION_TYPES[it.type]) item.setRequired(true);
+  return item;
+}
+
+// Sends each answer named in it.go_to to that page, or to the end of the form for "submit".
+// Answers not named continue to the next page as usual.
+function setBranches(item, it, pages) {
+  item.setChoices(it.choices.map(function (c) {
+    var to = it.go_to[c];
+    if (to === undefined) return item.createChoice(c, FormApp.PageNavigationType.CONTINUE);
+    if (to === 'submit') return item.createChoice(c, FormApp.PageNavigationType.SUBMIT);
+    return item.createChoice(c, pages[to]);
+  }));
 }
 
 function textValidation(kind) {
@@ -161,6 +186,10 @@ function validate(spec) {
   if (!spec.title) errs.push('title is required');
   if (!Array.isArray(spec.items) || !spec.items.length) errs.push('items must be a non-empty array');
   var titles = {};
+  var pageTitles = {};
+  (spec.items || []).forEach(function (it) {
+    if (it && it.type === 'page' && it.title) pageTitles[it.title] = (pageTitles[it.title] || 0) + 1;
+  });
   (spec.items || []).forEach(function (it, i) {
     var at = 'items[' + i + ']';
     if (!it || typeof it !== 'object') return errs.push(at + ': must be an object');
@@ -193,6 +222,26 @@ function validate(spec) {
     }
     if (it.other && it.type !== 'choice' && it.type !== 'checkbox') {
       errs.push(at + ': other only applies to choice and checkbox questions');
+    }
+    if (it.one_per_column !== undefined && it.type !== 'grid') {
+      errs.push(at + ': one_per_column only applies to grid questions');
+    }
+    if (it.go_to !== undefined) {
+      if (it.type !== 'choice' && it.type !== 'dropdown') {
+        errs.push(at + ': go_to only applies to choice and dropdown questions');
+      } else if (!it.go_to || typeof it.go_to !== 'object' || Array.isArray(it.go_to)) {
+        errs.push(at + ': go_to must map answers to page titles');
+      } else {
+        Object.keys(it.go_to).forEach(function (answer) {
+          var to = it.go_to[answer];
+          if ((it.choices || []).indexOf(answer) < 0) {
+            errs.push(at + ': go_to answer "' + answer + '" is not one of the choices');
+          }
+          if (to !== 'submit' && pageTitles[to] !== 1) {
+            errs.push(at + ': go_to target "' + to + '" must be "submit" or the title of exactly one page');
+          }
+        });
+      }
     }
   });
   if (errs.length) throw new Error('invalid spec:\n' + errs.join('\n'));

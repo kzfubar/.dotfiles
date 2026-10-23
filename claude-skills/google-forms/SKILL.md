@@ -62,17 +62,23 @@ responder link.
 |---|---|---|
 | `text` | Short answer | `validate`: `email`, `number` or `url` |
 | `paragraph` | Long answer | |
-| `choice` | Multiple choice, one answer | `choices`, `other` |
+| `choice` | Multiple choice, one answer | `choices`, `other`, `go_to` |
 | `checkbox` | Checkboxes, several answers | `choices`, `other` |
-| `dropdown` | Dropdown | `choices` |
+| `dropdown` | Dropdown | `choices`, `go_to` |
 | `scale` | Linear scale | `low` (0 or 1, default 1), `high` (3 to 10, default 5), `low_label`, `high_label` |
 | `date`, `time`, `datetime` | Date and/or time | |
-| `grid`, `checkbox_grid` | Grid, one or several per row | `rows`, `columns` |
+| `grid`, `checkbox_grid` | Grid, one or several per row | `rows`, `columns`; `grid` also `one_per_column` |
 | `section` | Title and text, not a question | |
 | `page` | Page break | |
 
 Every item takes `title` and `help`; questions also take `required`. `gform` rejects a spec with
 unknown types, missing choices or duplicate question titles before creating anything.
+
+- **Branching:** `go_to` maps answers to the title of a `page` item, or to `"submit"` to end the form:
+  `"go_to": {"No": "About you"}`. Answers it doesn't name continue to the next page. Each target
+  page title must be unique.
+- **Ranking:** a `grid` with `"one_per_column": true` allows one answer per column, so rows as options
+  and columns as ranks (1st, 2nd, ...) make a ranking question.
 
 ## The response Sheet
 

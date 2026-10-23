@@ -88,6 +88,7 @@ The links are listed once, in `links`, which both `link.sh` and `link.ps1` read.
 | `claude-settings.json` | `~/.claude/settings.json` |
 | `claude-hooks/` | Referenced from `claude-settings.json` |
 | `claude-skills/*` | `~/.claude/skills/*`, one link per skill |
+| `skills/` | `~/.skills`, skills loaded only on request |
 | `tools/gh-board/board` | `~/.local/bin/board` |
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |
 | `tools/gform/gform` | `~/.local/bin/gform` |

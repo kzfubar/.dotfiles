@@ -23,6 +23,7 @@ source for the commit-and-push rule below.
 | Claude Code settings or permissions | `claude-settings.json` |
 | Claude hook | `claude-hooks/`, referenced from `claude-settings.json` |
 | Claude skill | `claude-skills/<name>/SKILL.md`; `links` links every directory there |
+| Skill loaded only on request | `skills/<name>/SKILL.md`, linked as `~/.skills` |
 | Rule for Claude | `CLAUDE.md` |
 | macOS app or brew formula | `Brewfile` |
 

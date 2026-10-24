@@ -61,8 +61,8 @@ points, which the user can override:
 
 | Usually shared across projects | Usually kept per project |
 |---|---|
-| The observability backends: SigNoz (or another O4.3 platform), Langfuse, an error tracker, the Collector gateway in front of them | The local run directory and query scripts used in the agent loop |
-| Object storage and ClickHouse operations, when one team runs them | API keys and credentials: one Langfuse project and one set of keys per project |
+| The observability backends: SigNoz (or another O4.3 platform), Langfuse, an error tracker, the Collector gateway in front of them | The local run directory and query scripts used in the agent loop, and the project's canonical archive (O6.9), which keeps its history whatever backend it uses |
+| Object storage (including the archive's synced copy, O6.9) and ClickHouse operations, when one team runs them | API keys and credentials: one Langfuse project and one set of keys per project |
 | Dashboards and alert routing conventions | `service.name`, `deployment.environment.name` and the Langfuse project, which keep data apart inside shared backends; `service.version` and the commit, which tie the data to the code that produced it (O6.2) |
 | | Product data such as chat transcripts, which belong in the app's own database (O1) |
 | | Separate ClickHouse instances for SigNoz and Langfuse (O5.2), and separate dev and prod data when the data is sensitive |
@@ -90,12 +90,15 @@ What the harness writes: O6.2 log lines in `.telemetry/runs/<run>/logs.jsonl` of
 versioning the fields. Each `scripts/verify` is a run: it honours `TELEMETRY_RUN_ID`, creates the run
 otherwise, exports `TELEMETRY_RUN_ID` to the test commands it runs, and points `latest` at the run.
 Each Claude session has a `<ts>_session-<id>` run that never moves `latest`. The harness ships
-nothing and deletes nothing; long-term harness history lives in the shared backend once one exists.
+nothing and deletes nothing, and its `report.py` reads its history from those `logs.jsonl` files, so they are
+the harness's own record, not part of the rotated view. They reach the canonical archive (O6.9) by conversion
+when the archive is written or sealed, never by OTLP export from the hooks.
 
 Tickets in a harnessed repo follow this (step 5 adapts them):
 
 - **T1:** the layout may already exist, created by the harness; reuse it. Session runs never take
-  `latest`. Rotation applies to harness runs too.
+  `latest`. Rotation skips harness runs until they are converted into the archive and the harness reads its
+  history from there.
 - **T5:** produce the JUnit file and point `.uh/verify.toml`'s `[tests] junit_xml` at it, so verify
   reads the same results; set the run from `TELEMETRY_RUN_ID` when present.
 - **T6:** the summary and query scripts read `service: user-harness` lines like any other service;
@@ -111,8 +114,8 @@ Agree the **level** first:
 
 | Level | What it covers | Fits when |
 |---|---|---|
-| **1. Agent loop** | Per-run JSONL telemetry, `summary.json`, bounded query scripts, locally and in CI (O3, O6) | Every project; enough until an O3.2 condition holds |
-| **2. Shared environments** | Level 1, plus traces, logs and metrics from staging and production sent to a platform with a UI and retention (O4.3, O5.2) | Several machines or people, or production traffic |
+| **1. Agent loop** | Per-run JSONL telemetry, `summary.json`, bounded query scripts, locally and in CI, plus the canonical OTLP archive that keeps the project's history (O3, O6, O6.9) | Every project; enough until an O3.2 condition holds |
+| **2. Shared environments** | Level 1, plus traces, logs and metrics from staging and production sent to a platform with a UI and retention (O4.3, O5.2); a project moving here from level 1 brings its history by replaying its archive (T17) | Several machines or people, or production traffic |
 | **3. Operated service** | Level 2, plus alerting, SLOs, on-call routing and retention policy (O2.5) | Someone gets paged when it breaks |
 
 Then go through each **add-on**, and include it only if the user wants it:
@@ -175,7 +178,7 @@ For every included item, agree the **tier**:
 
 | Tier | Meaning |
 |---|---|
-| **raw** | Files only: flat JSONL written by the app, queried with rg, jq, DuckDB (O3) |
+| **raw** | Files only: the flat JSONL view and the OTLP archive written by the app, queried with rg, jq, DuckDB (O3, O6.9) |
 | **standard** | The reference default (O5.2) |
 | **connect** | Send to a shared service found in step 2 |
 | **keep** | What the project already has stays, wired into the run directory and docs |
@@ -198,7 +201,7 @@ survive even if ticketing stops:
   The ticket column fills in at step 6. Raw rows also say what the standard tier would be and
   which O3.2 condition would trigger the move.
 - Signals captured, and where each lands in each environment.
-- Redaction and retention rules.
+- Redaction and retention rules, including where the archive lives, how long it is kept (indefinitely by default) and where its synced copy goes (O6.9).
 - Items deliberately left out, with the reason.
 
 If `docs/stack.md` exists, point its observability row at this file.
@@ -212,22 +215,24 @@ acceptance and dependencies, in the shape `ticket-pipeline` expects.
 
 | # | Ticket | Scope | Acceptance |
 |---|---|---|---|
-| T1 | Run plumbing | Create `.telemetry/runs/<run_id>/`, the `latest` link, gitignore, keep last N. `run_id` comes from `TELEMETRY_RUN_ID` when the caller (`just`, test runner, CI) sets it, else generated. Reuse the `.artifacts` run ID when the web stack has one (2.16) | Two runs produce two directories; `latest` points at the newer one |
-| T2 | Telemetry module | One small module per language (for example `telemetry.py`, `telemetry.ts`) that starts a run, sets up the OTel tracer provider with an exporter writing flat JSONL spans (O6.2 schema, not OTLP JSON), attaches a log handler adding `trace_id` and `span_id`, fingerprints errors, redacts at write time, and offloads long payloads to `payloads/`. It stamps version provenance (O6.2): `service_version`, the full `git_sha`, `git_dirty` and, when dirty, the diff in `payloads/git-diff.patch`, and sets the same values once on the OTel Resource (`service.version`, `deployment.environment.name` plus `deployment.environment`, `vcs.ref.head.revision`, `vcs.repository.url.full`, `vcs.ref.head.dirty`). It wraps the existing logger rather than adding a second one | Unit tests for schema, fingerprint and redaction; a secret in a log call never reaches disk; every span, log and summary of a run carries the version and commit, and a dirty run has its diff |
-| T3 | Server instrumentation | Auto-instrumentation for the frameworks found (for example FastAPI, httpx, the DB driver), plus manual spans around the key operations listed in the audit, with a short how-to for adding more | Hitting one route gives a trace with route, outgoing-call and DB spans in `spans.jsonl` |
+| T1 | Run plumbing | Create `.telemetry/runs/<run_id>/`, the `latest` link, gitignore, keep the last N runs of the flat view, and `.telemetry/archive/` in the O6.9 layout, which rotation never touches. `run_id` comes from `TELEMETRY_RUN_ID` when the caller (`just`, test runner, CI) sets it, else generated. Reuse the `.artifacts` run ID when the web stack has one (2.16) | Two runs produce two directories; `latest` points at the newer one; rotating runs leaves the archive unchanged |
+| T2 | Telemetry module | One small module per language (for example `telemetry.py`, `telemetry.ts`) that starts a run, sets up one OTel tracer provider (shared with the Langfuse SDK) with two exporters, the flat JSONL view (O6.2) and the canonical OTLP JSON archive (O6.9: spec format, hex IDs, integer enums, record-date partitions, gzip on seal, `telemetry.run_id` on the Resource), attaches a log handler adding `trace_id` and `span_id`, fingerprints errors as an attribute, redacts before either exporter sees the data, and offloads payloads over the content cap to `payloads/` and the archive sidecar. It stamps version provenance (O6.2): `service_version`, the full `git_sha`, `git_dirty` and, when dirty, the diff in `payloads/git-diff.patch`, and sets the same values once on the OTel Resource (`service.version`, `deployment.environment.name` plus `deployment.environment`, `vcs.ref.head.revision`, `vcs.repository.url.full`, `vcs.ref.head.dirty`). It wraps the existing logger rather than adding a second one | Unit tests for schema, fingerprint and redaction; a secret in a log call reaches neither file; the archive round-trips through the Collector's `otlpjsonfile` receiver unchanged (T18); every span, log and summary of a run carries the version and commit, and a dirty run has its diff |
+| T3 | Server instrumentation | Auto-instrumentation for the frameworks found (for example FastAPI, httpx, the DB driver), plus manual spans around the key operations listed in the audit, with a short how-to for adding more | Hitting one route gives a trace with route, outgoing-call and DB spans in `spans.jsonl` and in the archive |
 | T4 | Front-end telemetry | Browser OTel SDK, fetch instrumentation passing `traceparent` to the API, web-vitals | One page load gives one trace covering browser and API spans |
 | T5 | Test telemetry | pytest plugin or conftest hook and Vitest setup file that set `run_id` per session and record results for the summary; optional per-test spans | A test run writes its results into the run directory |
-| T6 | Summary and query scripts | `scripts/telemetry summary` builds `summary.json` from the run files (so it works for long-running servers and tests alike), plus `errors`, `trace`, `llm`, `diff`, all with bounded output (O6.3) | An induced error shows up in `errors` with a fingerprint and count; `trace <id>` prints the span tree |
-| T7 | LLM observability | Instrumentation or a wrapper for each LLM call site found, writing `llm.jsonl` (provider, requested and returned model, response ID, generation config, prompt name and version, tokens, cost, latency, previews, payload refs; O6.2); Langfuse SDK when tier is standard or connect, with prompts linked to their Langfuse prompt version and `release` set to the service version; record the GenAI instrumentation version (O6.8) | One model call appears in `llm.jsonl` with both models and its provider, and in Langfuse if connected, under the current release and prompt version |
-| T8 | Evals | Eval set as JSONL, a runner that scores each case and adds an `evals` line to the summary recording what produced the scores (commit, dirty flag and diff, provider, models and generation config, pinned dataset version, scorer name, version and arguments, eval version; O6.7), `diff` against a baseline from a clean tree that refuses mismatched dataset or scorer versions | Evals run from `just`; the summary shows pass counts and every provenance field; `diff` refuses a dirty baseline and a dataset-version mismatch |
-| T9 | Connect to shared services | Collector or exporter config pointing at the shared endpoint, with `service.name` and the version Resource attributes from T2 reaching it (O6.2), and `LANGFUSE_RELEASE` set to the same version when Langfuse is connected; keys added to `.env` with empty values and to `.env.example` | A test span and log arrive in the shared backend under the project's service name, and can be filtered by `service.version` and commit |
-| T10 | Platform deployment | Only when no shared platform exists and the user wants one, in its own repo or host: Collector, SigNoz, Langfuse and their stores (O5.2), healthchecks, pinned image tags, private network only | `docker compose up --wait` succeeds; a test span arrives |
+| T6 | Summary and query scripts | `scripts/telemetry summary` builds `summary.json` from the run files (so it works for long-running servers and tests alike) and copies it to the archive sidecar, plus `errors`, `trace`, `llm`, `diff`, all with bounded output (O6.3), and a check that reports a run with no data instead of an empty summary | An induced error shows up in `errors` with a fingerprint and count; `trace <id>` prints the span tree |
+| T7 | LLM observability | Instrumentation or a wrapper for each LLM call site found, through the shared tracer provider so calls reach the archive with `gen_ai.*` attributes and content up to the cap (O6.9), writing `llm.jsonl` (provider, requested and returned model, response ID, generation config, prompt name, version and content hash, tokens, cost, latency, previews, payload refs; O6.2); Langfuse SDK when tier is standard or connect, with prompts linked to their Langfuse prompt version and `release` set to the service version; record the GenAI instrumentation version (O6.8) | One model call appears in `llm.jsonl` with both models and its provider, and in Langfuse if connected, under the current release and prompt version |
+| T8 | Evals | Eval set as JSONL, a runner that scores each case and adds an `evals` line to the summary recording what produced the scores (commit, dirty flag and diff, provider, models and generation config, pinned dataset version, scorer name, version and arguments, eval version; O6.7), `diff` against a baseline from a clean tree that refuses mismatched dataset or scorer versions; results copied to the archive sidecar | Evals run from `just`; the summary shows pass counts and every provenance field; `diff` refuses a dirty baseline and a dataset-version mismatch |
+| T9 | Connect to shared services | Collector or exporter config pointing at the shared endpoint, with `service.name` and the version Resource attributes from T2 reaching it (O6.2), and `LANGFUSE_RELEASE` set to the same version when Langfuse is connected; the local archive keeps being written; keys added to `.env` with empty values and to `.env.example` | A test span and log arrive in the shared backend under the project's service name, and can be filtered by `service.version` and commit |
+| T10 | Platform deployment | Only when no shared platform exists and the user wants one, in its own repo or host: Collector, SigNoz, Langfuse and their stores (O5.2), healthchecks, pinned image tags, private network only; the gateway Collector also writes the canonical archive with the O6.9 seal step and syncs it to object storage off the platform host | `docker compose up --wait` succeeds; a test span arrives and appears in the sealed archive |
 | T11 | Error tracking | Sentry-compatible SDK pointed at GlitchTip or Sentry (O2.6), with source maps for the front end; `release` set to `<project>@<service version>`, created with its commits before events arrive (`releases new`, `set-commits --auto`, `deploys new` in CI) | An induced exception creates one grouped issue under the current release |
 | T12 | Code profiling | Continuous profiler agent sending to the agreed backend (O2.3) | A flame graph for the API appears under its service name |
 | T13 | Server and infra metrics | Host and container metrics, Prometheus scrape config, eBPF for services that can't be instrumented (O2.1, O4.1) | CPU, memory and request-rate metrics visible per service |
 | T14 | Alerting and dashboards | Error-rate and latency alerts routed to the agreed channel, one service dashboard, SLOs at level 3 (O2.5) | A test alert reaches the channel |
 | T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md` (in a harnessed repo: `AGENTS.md` only, per "User harness"); mark items done in `docs/observability.md` | Instructions name only commands that exist and work; in a harnessed repo `scripts/verify` passes |
 | T16 | Claude Code telemetry | Per machine, not per repo: an env file sourced from the shell profile setting `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP exporters and the endpoint of the agreed collector, and the content variables for the agreed capture level (all off by default; see "Claude Code content capture"); replaces a leftover `~/.config/user-harness/telemetry.env` | A Claude Code session's metrics arrive in the backend under its service name; content appears only at the agreed level (a prompt's text shows on `user_prompt` exactly when the level includes prompts) |
+| T17 | Promotion | Only when a project moves up a tier: the O6.9 procedure (cutover time, gather archives from every machine, prepare the target's disk and window, switch live export, replay once, migrate Langfuse-native state, verify counts), written as a runbook in `docs/observability.md` and then run | Counts per service and day in the new backend match the archive before the cutover; no duplicates; temporary settings are back to normal |
+| T18 | Archive round-trip test | A CI test that writes a fixture of traces, logs and metrics with the project's archive writer, reads it back with a pinned Collector `otlpjsonfile` receiver, and compares (O6.9) | The test fails when a field is lost or changed, and runs on every PR |
 
 ## 6. File and develop through ticket-pipeline
 
@@ -235,9 +240,10 @@ Read `~/.skills/ticket-pipeline/SKILL.md` and follow it, with these inputs:
 
 - **Plan doc:** `docs/observability.md`.
 - **Draft tickets:** from step 5.
-- **Presets:** "level-1 set" (T1, T2, T3, T5, T6, T15).
+- **Presets:** "level-1 set" (T1, T2, T3, T5, T6, T15, T18).
 - **Confirm-before:** T9, since it sends data to a shared service for the first time, T10,
-  since it deploys outside the repo, and T16, since it changes this machine's shell profile and
+  since it deploys outside the repo, T17, since it replays history into a shared backend and changes its
+  retention, and T16, since it changes this machine's shell profile and
   sends Claude Code's telemetry out (and, above "off", conversation content).
 
 `ticket-pipeline` finds the tracker and the dev pipeline, confirms both with the user, files the

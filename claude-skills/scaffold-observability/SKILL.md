@@ -1,6 +1,7 @@
 ---
 name: scaffold-observability
-description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level of observability, which add-ons to include (LLM observability, evals, profiling, server metrics, test telemetry, front-end, error tracking, alerting), what to share across projects and what to keep separate, and raw files versus standard tools per item, with versions from the stack reference. Writes docs/observability.md with the decisions, drafts one ticket per unit of work, and hands them to ticket-pipeline, which files them in the project's tracker once the user confirms and, if the user decides, develops them through the project's dev pipeline. Use when asked to add or plan logging, tracing, metrics, telemetry, monitoring, LLM tracing, profiling or error tracking, or to set up or connect to an observability stack. Triggers on "set up observability", "add telemetry", "add tracing", "plan observability", "trace the LLM calls", "connect to SigNoz/Langfuse".
+description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level, add-ons, tier and what to share, writes docs/observability.md with the decisions, drafts one ticket per unit of work, and hands them to ticket-pipeline.
+disable-model-invocation: true
 ---
 
 # scaffold-observability

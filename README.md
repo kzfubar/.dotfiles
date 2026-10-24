@@ -41,10 +41,18 @@ elevated shell. Clone with Git for Windows (`winget install Git.Git`), then in P
 powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
 ```
 
-Installs Git, GitHub CLI, Node.js, uv and jq with winget, and Claude Code with its own installer,
-then runs `link.ps1`: junctions for directories, symbolic links for files. No zsh: Claude Code's
-hooks run in Git Bash. Like `link.sh`, it skips files that already exist, so move an existing
-`~/.gitconfig`, `~/.claude/CLAUDE.md` or `~/.claude/settings.json` aside first. Safe to re-run.
+Installs Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide with winget, and
+Claude Code with its own installer, then runs `link.ps1`: junctions for directories, symbolic links
+for files. Like `link.sh`, it skips files that already exist, so move an existing `~/.gitconfig`,
+`~/.claude/CLAUDE.md`, `~/.claude/settings.json`, `~/.bashrc` or PowerShell profile aside first.
+Safe to re-run.
+
+There is no zsh on Windows. Git Bash is the shell, and Windows Terminal's default (the bootstrap
+sets it, unless another default was already picked): `.bashrc` loads the same aliases and functions
+as `.zshrc` (`shell/common.sh`), with mise, zoxide's `z` in place of zsh-z, and a Starship prompt
+styled after robbyrussell. PowerShell 7 is the second shell, for Windows itself; its profile, shared
+with Windows PowerShell 5.1, loads mise, `z` and the same prompt, and makes `vim` Git for Windows'
+vim. The bootstrap sets the execution policy to RemoteSigned for the user so the profile runs.
 
 ## After bootstrapping
 
@@ -83,6 +91,10 @@ doesn't leave a dangling link behind.
 | File | Linked to |
 |---|---|
 | `.zshrc` | `~/.zshrc` (not on Windows) |
+| `shell/common.sh` | Sourced by `.zshrc` and `.bashrc`: shared aliases and functions |
+| `.bashrc`, `.bash_profile` | `~/.bashrc`, `~/.bash_profile` (Windows only, Git Bash) |
+| `starship.toml` | `~/.config/starship.toml` (Windows only) |
+| `powershell/profile.ps1` | `~/Documents/PowerShell/` and `~/Documents/WindowsPowerShell/` `Microsoft.PowerShell_profile.ps1` (Windows only) |
 | `.vimrc` | `~/.vimrc` |
 | `.gitconfig` | `~/.gitconfig` (includes `.gitconfig.local` last) |
 | `.gitignore_global` | `~/.gitignore_global` |

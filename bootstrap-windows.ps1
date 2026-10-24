@@ -1,6 +1,7 @@
-# Windows bootstrap: Git, GitHub CLI, Node.js, uv and jq via winget, Claude Code, Claude
-# plugins, user-harness, a commit signing key, and links. Safe to re-run. File links need
-# Developer Mode; see README.md. For macOS or Ubuntu, use bootstrap-macos or bootstrap-ubuntu.
+# Windows bootstrap: Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide
+# via winget, Claude Code, Claude plugins, user-harness, a commit signing key, links, and Git
+# Bash as Windows Terminal's default. Safe to re-run. File links need Developer Mode; see
+# README.md. For macOS or Ubuntu, use bootstrap-macos or bootstrap-ubuntu.
 #
 #   powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
 $ErrorActionPreference = 'Stop'
@@ -27,7 +28,10 @@ if ($PSScriptRoot -ne (Resolve-Path $dotfiles -ErrorAction SilentlyContinue).Pat
 Step 'winget packages'
 # The calling shell's PATH can predate an earlier run's installs.
 Update-Path
-$packages = [ordered]@{ git = 'Git.Git'; gh = 'GitHub.cli'; node = 'OpenJS.NodeJS'; uv = 'astral-sh.uv'; jq = 'jqlang.jq' }
+$packages = [ordered]@{
+	git = 'Git.Git'; gh = 'GitHub.cli'; node = 'OpenJS.NodeJS'; uv = 'astral-sh.uv'; jq = 'jqlang.jq'
+	mise = 'jdx.mise'; pwsh = 'Microsoft.PowerShell'; starship = 'Starship.Starship'; zoxide = 'ajeetdsouza.zoxide'
+}
 foreach ($command in $packages.Keys) {
 	$present = Get-Command $command -ErrorAction SilentlyContinue
 	if ($command -eq 'node' -and $present) { $present = [int](node --version).TrimStart('v').Split('.')[0] -ge 24 }
@@ -148,5 +152,32 @@ if (Test-Path $board) {
 
 Step 'links'
 & (Join-Path $dotfiles 'link.ps1')
+
+# Windows client machines default to Restricted, which skips the PowerShell profile.
+Step 'PowerShell profile'
+if ((Get-ExecutionPolicy -Scope CurrentUser) -eq 'Undefined' -and (Get-ExecutionPolicy -Scope LocalMachine) -in 'Undefined', 'Restricted') {
+	Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
+	Write-Host 'execution policy: RemoteSigned for this user'
+} else {
+	Write-Host "execution policy: $(Get-ExecutionPolicy -Scope CurrentUser) for this user"
+}
+
+# Only replaces Windows PowerShell, the stock default, so a default picked later stays.
+Step 'Windows Terminal'
+$terminal = Join-Path $env:LOCALAPPDATA 'Packages\Microsoft.WindowsTerminal_8wekyb3d8bbwe\LocalState\settings.json'
+$windowsPowerShell = '{61c54bbd-c2c6-5271-96e7-009a87ff44bf}'
+$gitBash = '{2ece5bfe-50ed-5f3a-ab87-5cd4baafed2b}'
+if (-not (Test-Path $terminal)) {
+	Write-Host 'skipped: open Windows Terminal once, then re-run this bootstrap'
+} else {
+	$text = [IO.File]::ReadAllText($terminal)
+	$pattern = '"defaultProfile":\s*"' + [regex]::Escape($windowsPowerShell) + '"'
+	if ($text -match $pattern) {
+		[IO.File]::WriteAllText($terminal, ($text -replace $pattern, "`"defaultProfile`": `"$gitBash`""))
+		Write-Host 'default profile: Git Bash'
+	} else {
+		Write-Host 'default profile already changed'
+	}
+}
 
 Step 'Done. Manual steps are in README.md.'

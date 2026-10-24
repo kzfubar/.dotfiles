@@ -32,9 +32,9 @@ It is about 2,300 lines. Never read it whole: list the headings with
    and, for deviations, the reason. Adapt the instructions-file snippets in 5.6 and O6.4 rather
    than inventing conventions.
 5. **Set up the agent loop** per 5 and O6: one `just check` entry point, machine-readable outputs
-   in a per-run directory, `summary.json` first. `scaffold-webapp` builds the web stack;
-   `scaffold-observability` plans telemetry with the user and files the work as tickets. Both
-   follow this reference.
+   in a per-run directory, `summary.json` first. `scaffold-webapp` and
+   `scaffold-observability` plan the web stack and telemetry with the user from this reference,
+   and `ticket-pipeline` files and develops the work.
 
 Present tradeoffs as the reference does: the pick, the runner-up, and the condition that would
 flip it. Don't paste sections of the reference into chat.

@@ -1,6 +1,8 @@
 # Creates the links listed in links: junctions for directories, symbolic links for files.
 # Existing files that aren't links are left alone. File links need Developer Mode
-# (Settings > System > For developers) or an elevated shell.
+# (Settings > System > For developers) or an elevated shell. In directories filled from a
+# source/* entry, removes links into that source whose target no longer exists, such as a
+# skill that was moved or deleted.
 $ErrorActionPreference = 'Stop'
 $dotfiles = Join-Path $HOME '.dotfiles'
 
@@ -32,6 +34,19 @@ function Link($src, $dst) {
 	Write-Host "linked: $dst"
 }
 
+function Prune($dir, $src) {
+	$src = [IO.Path]::GetFullPath($src).TrimEnd('\')
+	foreach ($item in Get-ChildItem -LiteralPath $dir -Force) {
+		if (-not $item.LinkType) { continue }
+		$to = @($item.Target)[0]
+		if (-not $to -or -not $to.StartsWith("$src\", [StringComparison]::OrdinalIgnoreCase)) { continue }
+		if (Test-Path -LiteralPath $to) { continue }
+		# Delete() without arguments removes only the link, never the directory it points to.
+		$item.Delete()
+		Write-Host "removed: $($item.FullName)"
+	}
+}
+
 if (-not (Test-CanSymlink)) {
 	Write-Error 'File links need Developer Mode: turn it on in Settings > System > For developers, then re-run.'
 }
@@ -43,6 +58,7 @@ foreach ($line in Get-Content (Join-Path $dotfiles 'links')) {
 	$target = Join-Path $HOME $dst
 	if ($src.EndsWith('/*')) {
 		New-Item -ItemType Directory -Force $target | Out-Null
+		Prune $target (Join-Path $dotfiles $src.TrimEnd('*'))
 		foreach ($dir in Get-ChildItem -Directory (Join-Path $dotfiles $src.TrimEnd('*'))) {
 			Link $dir.FullName (Join-Path $target $dir.Name)
 		}

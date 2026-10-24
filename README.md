@@ -76,7 +76,9 @@ hooks run in Git Bash. Like `link.sh`, it skips files that already exist, so mov
 
 ## Layout
 
-The links are listed once, in `links`, which both `link.sh` and `link.ps1` read.
+The links are listed once, in `links`, which both `link.sh` and `link.ps1` read. For `source/*`
+entries, both also remove links whose target in the source is gone, so a moved or deleted skill
+doesn't leave a dangling link behind.
 
 | File | Linked to |
 |---|---|

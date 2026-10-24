@@ -30,6 +30,12 @@ Don't ask them as plain text, and don't guess an answer to keep going. Common on
   link it with `gh project link <number> --owner <owner> --repo <repo>`, or use an existing board (the user
   gives owner and number under "Other"). Write the chosen pair into the repo's `.claude/settings.json` `env`; the
   update commit carries it.
+- **Autonomy level** (`docs/agents/orchestration.md`, UH-021): how much the main session may do without asking. On
+  an install, always ask; options 1 (Recommended: asks before merging and before design decisions with notable
+  tradeoffs), 2 (merges its own PRs once verify and CI pass), 3 (also settles notable design decisions itself after
+  prior-art research and a plan review). On an update, ask only if the repo's `.claude/settings.json` `env` has no
+  `UH_AUTONOMY`: options keep the default of 1 (Recommended), or set 2 or 3. Write a chosen level into that `env`;
+  the update commit carries it.
 - **Uncommitted template changes** in `~/projects/user-harness` (section 1).
 - **The base commit** for an install that predates `.uh/base/` (section 2).
 - **An uncertain `HL-` to `UH-` match** (section 3).
@@ -39,16 +45,17 @@ only arises later (a conflict that needs judgment) is asked the same way when it
 
 ## 0. Install if there is no harness
 
-Settle the open questions above first: the repository, the remote and the board.
+Settle the open questions above first: the repository, the remote, the board and the autonomy level.
 
 - If the repo has no commits yet, make an empty initial commit on the default branch (`main` unless the user says
   otherwise) and push it, so the install can go through a PR like any other change.
-- Create the branch `uh-init-<YYYY-MM-DD>` and run `uh init`. It refuses if harness files already exist; report the
-  clashes and stop rather than passing `--force`.
+- Create the branch `uh-init-<YYYY-MM-DD>` and run `uh init --autonomy <level>` with the level the user chose. It
+  refuses if harness files already exist; report the clashes and stop rather than passing `--force`.
 - Run `scripts/verify`. It should pass and report "no behavioural checks". Show its result line.
 - Commit everything `uh init` wrote, including `.uh/base/` and `.uh/manifest.json`, as one harness-only commit in
   the repo's message style. Push, and open a PR labelled `uh-bootstrap` (create the label with
-  `gh label create uh-bootstrap` if the repo lacks it). Don't merge it. Without a remote, stop after the commit.
+  `gh label create uh-bootstrap` if the repo lacks it). Merge it or not as section 5 says. Without a remote, stop
+  after the commit.
 - End with the PR link and the next steps `uh init` prints: fill `.uh/verify.toml`, grow `AGENTS.md` from observed
   failures, and protect `main` (require PRs and the `verify` check).
 
@@ -98,6 +105,12 @@ differently. Bring a template change in only if it is clearly a generic fix, and
 
 **`kept`** files changed here but were changed or dropped upstream. Report them; don't delete anything.
 
+**`retire`** lines name functionality the harness has retired (from `src/user_harness/retired.toml` in the
+user-harness package); `uh update` already removed its retired `.gitignore` lines. The notices under
+`Retired functionality:` name leftover paths that still exist and steps outside the repo (for example on this
+machine). Don't delete leftover paths or act on the notices yourself: copy them into the PR body for the user, since
+leftovers are often data or committed history, and machine-level steps are the user's.
+
 ## 4. Check
 
 - No conflict markers remain: `git grep -nE '^(<<<<<<<|=======|>>>>>>>)( |$)' -- AGENTS.md docs .claude .uh scripts`.
@@ -110,7 +123,14 @@ differently. Bring a template change in only if it is clearly a generic fix, and
 ## 5. Commit and open the PR
 
 Commit everything the update touched, including `.uh/base/` and `.uh/manifest.json`, as one harness-only commit in
-the repo's message style. Push the branch and open a PR (without a remote, stop after the commit). The body lists the actions from `uh update`, how each
-conflict and `own` file was resolved, and the `scripts/verify` result line. Don't merge it.
+the repo's message style. Push the branch and open a PR (without a remote, stop after the commit). The body lists
+the actions from `uh update`, how each conflict and `own` file was resolved, the retirement notices word for word,
+and the `scripts/verify` result line.
+
+Whether to merge follows the repo's autonomy level: `UH_AUTONOMY` in `.claude/settings.local.json`, else
+`.claude/settings.json`, else 1 (the level this PR sets, if it changes it, applies from the next PR). At level 1,
+don't merge; ask the user. At 2 or 3, merge once `scripts/verify` and the PR's CI pass, unless the update raised
+something that needs the user: an unresolved question, a conflict you resolved by judgment that they should see, or
+a retirement notice that asks them to act. Never merge past a failing or missing check.
 
 End with the PR link and a short summary: what changed, what needed judgment, and anything left for the user.

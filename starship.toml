@@ -1,0 +1,24 @@
+# Prompt for Git Bash and PowerShell on Windows, after oh-my-zsh's robbyrussell theme (the zsh
+# prompt on macOS and Ubuntu). Only the modules in `format` run, which keeps it fast on Windows.
+add_newline = false
+format = "$character$directory$git_branch$git_status$cmd_duration"
+
+[character]
+success_symbol = "[➜](bold green)"
+error_symbol = "[➜](bold red)"
+format = "$symbol "
+
+[directory]
+truncation_length = 1
+truncate_to_repo = false
+style = "bold cyan"
+format = "[$path]($style) "
+
+[git_branch]
+format = '[git:\(](bold blue)[$branch](bold red)[\)](bold blue) '
+
+[git_status]
+format = '([$all_status$ahead_behind](bold yellow) )'
+
+[cmd_duration]
+format = "[$duration](dimmed) "

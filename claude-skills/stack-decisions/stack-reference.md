@@ -528,7 +528,7 @@ Covered in Part O (sections O1 to O8). Stack-specific hooks:
 - **Back end:** `opentelemetry-instrumentation-fastapi` (plus httpx, database instrumentations) exporting OTLP to the Collector.
 - **Front end:** OpenTelemetry browser SDK (fetch instrumentation propagates `traceparent` to FastAPI, joining front end and back end into one trace) and `web-vitals` for Core Web Vitals.
 - **Error tracking:** Sentry (or self-hosted GlitchTip) for front-end exceptions with source maps, if you want issue grouping beyond logs.
-- **Dev loop:** the per-run `.telemetry/` conventions from O6.2 apply unchanged; add test and gate outputs to the same run directory (Section 5).
+- **Dev loop:** the per-run `.telemetry/` conventions from O6.2 and the canonical archive from O6.9 apply unchanged; add test and gate outputs to the same run directory (Section 5).
 
 ### 2.17 Security and supply chain
 
@@ -1927,7 +1927,7 @@ Neither is simply superior.
 | Full-text search | Elasticsearch | SQLite FTS5 |
 | Dashboards | Grafana, Kibana | `sort \| uniq -c`, gnuplot |
 | Alerting | Alertmanager | cron + script + webhook |
-| Pipeline | OTel Collector | App writes directly to files (or Collector file exporter) |
+| Pipeline | OTel Collector | App writes directly to files: the flat view plus the OTLP archive (O6.9) |
 
 ### O3.2 Where raw text breaks down
 
@@ -1969,7 +1969,7 @@ How telemetry is produced decides how portable everything downstream is.
 | **Vendor agent** | Turnkey with that vendor | Lock-in; duplicate agents if you change | Single commercial backend, no plans to leave |
 | **Direct export, no pipeline** | Nothing to run; fewest hops | No central redaction or routing; app config holds backend details | Local development, single backend, agent loops writing files |
 
-**Our pick and why:** OTel Collector in production (open source, standard, one pipeline for every signal and for routing LLM spans to Langfuse). Direct export or files for local loops.
+**Our pick and why:** OTel Collector in production (open source, standard, one pipeline for every signal and for routing LLM spans to Langfuse; the gateway also writes the canonical archive, O6.9). Direct export or files for local loops, with the app's telemetry module writing the archive in-process (O6.9).
 
 ### O4.3 Backend platform shape
 
@@ -2028,7 +2028,7 @@ How telemetry is produced decides how portable everything downstream is.
 | **Platform** (SigNoz, Langfuse) | Shared UI, retention, access control, alerting | Infra to run; agents need CLI/MCP access with limits | Staging and production; multiple people |
 | **Both, same instrumentation** | Same OTel code; only the Collector exporter changes | Two query paths to document | Almost always |
 
-**Our pick and why:** Both. Files for the agent's inner loop, platform for shared environments, one OTel instrumentation feeding either.
+**Our pick and why:** Both. Files for the agent's inner loop, platform for shared environments, one OTel instrumentation feeding either. Every tier also keeps the canonical OTLP archive (O6.9), so a project promoted from files to a platform brings its history by replay.
 
 ### O4.8 Languages by role
 
@@ -2054,9 +2054,10 @@ Priorities: open source and self-hosted, then standardized, then deduplicated. O
 ### O5.1 Local / simple
 
 ```
-OTel SDKs + Langfuse SDK
-        -> OTel Collector (file exporter) or direct JSONL writes
-        -> .telemetry/runs/<run_id>/*.jsonl
+OTel SDKs + Langfuse SDK (one TracerProvider)
+        -> telemetry module
+             -> .telemetry/runs/<run_id>/*.jsonl      flat view for the agent loop (O6.2), rotated
+             -> .telemetry/archive/otlp/...jsonl.gz   canonical OTLP archive (O6.9), kept
         -> rg / jq / DuckDB
 ```
 
@@ -2181,7 +2182,8 @@ prompt template.
 - **Fingerprint errors.** Hash of error type plus top stack frame, so the agent sees "3 distinct errors, 400 occurrences."
 - **Redact at write time.** Secrets, tokens, personal data never hit disk.
 - **Separate human and machine output.** Friendly console, structured files.
-- **Clean up automatically.** Keep the last N runs; gitignore `.telemetry/`.
+- **Clean up automatically.** Keep the last N runs of these flat files; gitignore `.telemetry/`. Rotation never
+  touches the canonical archive (O6.9), which is what keeps a project's history.
 
 **Version provenance in exported data.** Local runs are rotated away, so the backend must carry the version
 on its own. Set it once per process on the OTel Resource, which every span, metric and log from that provider
@@ -2281,7 +2283,7 @@ ORDER BY cost DESC;
 Telemetry shows *what happened*; evals show *whether it got better*.
 
 - Keep an eval set as JSONL: input cases plus expected properties.
-- A script runs every case, writes per-case transcripts and scores to the run directory, and adds a line to the summary, e.g. `"evals": {"passed": 42, "total": 50, "avg_cost_usd": 0.003}`.
+- A script runs every case, writes per-case transcripts and scores to the run directory, and adds a line to the summary, e.g. `"evals": {"passed": 42, "total": 50, "avg_cost_usd": 0.003}`. Eval results and the summary are copied to the archive's sidecar (O6.9), so they survive rotation and promotion.
 - Every eval run records what produced its scores, in the summary's `evals` object: `git_sha`, `git_dirty` and `git_diff_ref`; `provider`, `request_model`, `response_model` and `gen_config` of the system under test; the dataset's name and pinned version (a Langfuse dataset version timestamp, or a version you assign); the scorer's name, version and arguments, including the judge's model and prompt version for an LLM judge; and the eval's own version. Inspect AI's `EvalSpec` records the same set as structured fields; Langfuse and Braintrust put them in run metadata.
 - A baseline must come from a clean tree (`git_dirty: false`), and `diff` refuses to compare runs whose dataset versions or scorer versions differ. This is our policy: the tools surveyed record the dirty flag and diff but don't refuse.
 - The agent treats prompt and agent changes like code changes with tests, and diffs eval results against the baseline.
@@ -2295,6 +2297,83 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 - **Keep secrets out of logs entirely.** Anything the agent reads may end up in its context, outputs, or commit messages.
 - Mind cost when agents run LLM-backed analysis over large telemetry; filter first.
 - **Pin GenAI instrumentation versions.** The OTel GenAI conventions are still at Development stability and have moved out of core semantic conventions into their own repository (semantic-conventions-genai, no tagged release as of Oct 2026); record which instrumentation version and conventions commit your code emits.
+
+### O6.9 Canonical archive and tier promotion
+
+Projects move up tiers: **starter** (files only), **middle** (one light shared backend; the stack is an open
+choice: tuned SigNoz, OpenObserve or Parseable), **prod** (SigNoz + Langfuse, O5.2). A project promoted after
+months must bring its history, and the flat O6.2 files can't carry it: they are rotated and lossy (no resource or
+scope, span kind, events, links, typed attributes or metrics). So every tier also keeps one canonical archive in
+a format no backend choice changes, and promotion replays it. This is the archive-and-rehydrate pattern of
+Datadog Log Archives, Cribl Replay and the OTel S3 exporter/receiver pair.
+
+**Format: OTLP JSON Lines, as in the OTel File Exporter spec.** One `TracesData`, `LogsData` or `MetricsData` per
+line, one signal per file, gzip once a file is sealed. The OTLP encodings are Stable with additive-only changes,
+and every candidate backend ingests OTLP. OTLP JSON is not plain proto3 JSON: trace and span IDs are hex and enums
+are integers, so serialise with an OTLP-aware encoder. Rejected: Parquet (no standard OTLP schema; Tempo,
+OpenObserve, Parseable and otel-arrow each use their own, and no Parquet-to-OTLP replay tool exists), OTLP
+protobuf files (no Collector reader for the file exporter's framing), the flat O6.2 files (lossy), ClickHouse
+BACKUP (backend-specific; prod disaster recovery only). gzip because it is the codec the Collector's
+`otlpjsonfile` receiver reads.
+
+**Layout** (Hive-style; settle it before data accumulates, since changing partition keys means rewriting the
+archive):
+
+```
+<archive>/otlp/project=<service.namespace>/service=<service.name>/signal=<traces|logs|metrics>/date=YYYY-MM-DD/<writer-id>_<uuidv7>.jsonl.gz
+<archive>/sidecar/project=<service.namespace>/run=<run_id>/{summary.json,payloads/,git-diff.patch,evals/}
+```
+
+- `date` is the UTC date of the record: span start time, log record time, metric data point time. A writer that
+  receives a batch spanning midnight splits it.
+- `run_id` is a Resource attribute (`telemetry.run_id`, our own name), so any run can be selected from the archive.
+- The sidecar holds what isn't OTLP: summaries, payloads over the content cap, diffs of dirty trees, eval results.
+- LLM prompt and response content goes in the OTLP data up to a content cap (60 KB, matching Claude Code's
+  default), the rest in sidecar payloads, so a replay into Langfuse isn't truncated. Redact before it is written.
+
+**Who writes it, per tier:**
+
+| Tier | Writer | Where the archive lives |
+|---|---|---|
+| Starter | The app's telemetry module writes OTLP JSON in-process, beside the flat view (no Collector process). Python has no stock OTLP file exporter, so the module owns about 100 lines that reuse the OTLP proto encoders and emit OTLP JSON | `.telemetry/archive/` of the project's main checkout; CI runs' archives are not kept at this tier |
+| Middle, prod | The gateway Collector's `file` exporter (`format: json`, size rotation, no Collector compression) plus a seal step; projects keep their local archive too | The platform host, synced to S3-compatible storage (SeaweedFS or Garage, O2.4) |
+
+**The seal step** (middle and prod) turns Collector output into the layout: it seals the stable prefix of the
+active file by stored byte offset (the exporter rotates by size only, and quiet hours never rotate), drops a
+truncated last line (the exporter doesn't fsync), moves rotated files out before the exporter's backup limit
+deletes them, splits by record date and signal, caps line length while re-chunking (`otlpjsonfile` splits lines
+over `max_log_size`, 1 MiB by default), and gzips. Prune sealed local files only after a verified sync, and keep
+the object store off the platform host or it is not a backup. Don't use `awss3exporter` for the archive: it
+partitions by upload time, and `awss3receiver` selects by those prefixes.
+
+**Promotion** to a higher tier:
+
+1. Pick a cutover time T. Replay covers archive data before T; live export covers after T. The new backend's
+   archive is canonical after T.
+2. Gather the archives from every machine that produced data for the project.
+3. Prepare the target: check its disk against the history size; set its window above the history age (SigNoz
+   retention, which applies forward only and to every project on a shared instance; OpenObserve
+   `ZO_INGEST_ALLOWED_UPTO`, default 5 hours, set back afterwards; Parseable streams created with a time
+   partition).
+4. Point the project's live exporters at the new backend.
+5. Replay once with a one-off Collector: `otlpjsonfile` (`start_at: beginning`, `include_file_name: false`,
+   `max_log_size` above the longest line, a `storage` extension for offsets) into `otlphttp`; LLM spans also to
+   Langfuse's OTLP endpoint (`/api/public/otel`). Replay from object storage means download, then `otlpjsonfile`.
+6. Langfuse-native state (prompts, datasets, scores) moves by API, per Langfuse's migration cookbook: prompt
+   versions are renumbered (record the prompt name and a content hash on every LLM span, O6.2) and scores take the
+   migration time. At starter-to-middle there is no Langfuse yet; eval results stay in the sidecar.
+7. Verify counts per service and day against the archive. Metric backfill into SigNoz is unconfirmed; treat the
+   metrics check as provisional.
+
+**Not in the archive:** dashboards, alerts, SLOs, saved views, users; Langfuse prompts, datasets, dataset runs,
+scores and evaluator configs; profiles (the OTLP profiles signal is Development).
+
+**Risks:** every Collector file component (file exporter, `otlpjsonfile`, `awss3*`) is Alpha and the spec's file
+exporter is Development, so pin versions and keep a round-trip test (write with the project's writer and the
+Collector, read back with `otlpjsonfile`, compare) in CI. Replaying twice duplicates data (no documented dedup in
+SigNoz). GenAI attribute names may drift; the instrumentation version on the Resource lets a replay remap them. No
+measured sizes exist for OTLP JSON against the alternatives; measure on real data. The DuckDB `otlp` community
+extension reads the archive directly but is early-stage (100 MB per file cap, breaking changes in 0.5.0).
 
 ---
 
@@ -2364,6 +2443,18 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 - Langfuse, dataset versioning: https://langfuse.com/docs/evaluation/experiments/datasets
 - Inspect AI, eval log schema: https://github.com/UKGovernmentBEIS/inspect_ai/blob/main/src/inspect_ai/log/_log.py
 - MLflow, git tags: https://github.com/mlflow/mlflow/blob/master/mlflow/utils/mlflow_tags.py
+- OTel spec, OTLP File Exporter: https://opentelemetry.io/docs/specs/otel/protocol/file-exporter/
+- OTLP protocol and stability: https://opentelemetry.io/docs/specs/otlp/ and https://github.com/open-telemetry/opentelemetry-proto
+- Collector file exporter: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/exporter/fileexporter/README.md
+- Collector otlpjsonfile receiver: https://github.com/open-telemetry/opentelemetry-collector-contrib/blob/main/receiver/otlpjsonfilereceiver/README.md
+- Collector awss3 exporter and receiver: https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/exporter/awss3exporter and https://github.com/open-telemetry/opentelemetry-collector-contrib/tree/main/receiver/awss3receiver
+- otel-arrow (OTAP, parquet exporter): https://github.com/open-telemetry/otel-arrow
+- Datadog log rehydration: https://docs.datadoghq.com/logs/log_configuration/rehydrating/
+- Cribl Replay from S3: https://docs.cribl.io/stream/usecase-replay-s3/
+- Langfuse data migration cookbook: https://langfuse.com/guides/cookbook/example_data_migration.md
+- SigNoz retention: https://signoz.io/docs/userguide/retention-period
+- OpenObserve environment variables: https://openobserve.ai/docs/environment-variables
+- DuckDB otlp extension: https://duckdb.org/community_extensions/extensions/otlp
 - DEV.co, Vector profile: https://dev.co/observability/open-source/vector
 - DEV.co, Grafana Agent end of life: https://dev.co/observability/open-source/grafana-agent
 - DEV.co, Grafana Alloy profile: https://dev.co/observability/open-source/alloy
@@ -2388,6 +2479,7 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 
 | Date | Change |
 |---|---|
+| 2026-10-24 | O6.9 added: canonical OTLP JSON Lines archive (gzip, Hive layout by project, service, signal and record date) kept at every tier, in-process writer at the starter tier, gateway writer plus seal step above it, and the tier promotion procedure; O6.2 rotation limited to the flat view; O3.1, O4.2, O4.7, O5.1, O6.7 and 2.16 point at it. |
 | 2026-10-24 | O6.2/O6.7: version provenance. Full SHA, dirty definition and diff; provider, request and response model, response ID and prompt version on LLM lines; export mapping to `service.version`, `deployment.environment.name`, `vcs.*`, Langfuse and Sentry release; eval runs record dataset, scorer and model versions; GenAI conventions moved repository. |
 | 2026-10-23 | pnpm 12 (Aug 2026) and Vitest 5 (Sep 2026) replace pnpm 11 and Vitest 4 as current majors; picks unchanged. |
 | 2026-10-23 | Created from the web stack and observability research notes (Google Drive, Research folder), status as of October 2026. |

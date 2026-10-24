@@ -60,7 +60,6 @@ The user is a non-specialist for most projects and must be able to decide on the
   - `decision`: one sentence stating the decision;
   - `problem`: why it needs deciding now;
   - `why_you`: why the user decides it, not the project;
-  - `if_no_decision`: what happens if nobody decides, and by when;
   - an `options_table` whose rows use the option keys, with `you_get`, `you_give_up`, `next_step`, `undo_later`;
   - `recommendation`: the project's pick and the main reason (the page hides it until the user opens it).
 - Budgets: at most 300 words in the summary layer, 120 in any block. Everything else goes in `detail` blocks (tables,

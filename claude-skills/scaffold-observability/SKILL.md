@@ -35,6 +35,9 @@ Read the repo, don't guess, and record what you find:
 - **Telemetry already present:** loggers and their config, OTel packages, `OTEL_*` variables in
   config and `.env.example` (never read `.env`), Prometheus endpoints, vendor SDKs (Sentry,
   Datadog), a `.telemetry/` directory.
+- **User harness:** a `.uh/` directory means the repo runs the user harness, which already writes
+  into `.telemetry/runs/` (see "User harness" below). Its lines are an existing producer to keep
+  and ship, never to replace.
 - **Data sensitivity:** secrets, tokens and personal data that could reach logs or traces.
 
 ## 2. Find shared and pre-existing services
@@ -43,9 +46,10 @@ Look before asking, then ask about what you couldn't find:
 
 - `shared-services.local` next to this file: services recorded by earlier runs on this machine
   (endpoints, what each is for, which projects use it). It is gitignored; never put keys in it.
-- The user harness telemetry config, `~/.config/user-harness/telemetry.env`, and its receiver
-  (`telemetry-host/up.sh` in `~/projects/user-harness`: Grafana's all-in-one OTLP image).
-- OTLP endpoints in the shell environment or in the project's config files.
+- OTLP endpoints in the shell environment or in the project's config files, including Claude
+  Code's own OpenTelemetry variables (`CLAUDE_CODE_ENABLE_TELEMETRY`, `OTEL_*`) in the shell profile.
+  A leftover `~/.config/user-harness/telemetry.env` comes from the retired `uh telemetry setup`;
+  T16 replaces it.
 - Running containers (`docker ps`) and Compose files in this repo or a sibling platform repo.
 - Then ask the user: is there a SigNoz, Langfuse, Grafana stack, Sentry or GlitchTip, ClickHouse,
   Postgres or object store this project should use? Where does it run, and who else uses it?
@@ -65,6 +69,41 @@ points, which the user can override:
 
 Deploying a shared platform is never part of one project's Compose. If no platform exists and the
 user wants one, it gets its own repo or host and its own ticket (T10).
+
+### User harness
+
+When the repo has `.uh/`, this skill's observability system takes precedence over the harness's
+telemetry and incorporates it. The harness only produces events; everything else is owned here. The
+same table is in the harness README ("Telemetry boundary"); keep the two in step.
+
+| Concern | Owner |
+|---|---|
+| Harness events (what, when, fields) | user harness |
+| Run directory layout, `latest`, summary, query scripts | observability (this skill) |
+| Retention and rotation | observability |
+| Shipping to a backend, endpoints, credentials | observability |
+| Claude Code's own OTel settings | observability (T16) |
+| Test results file (JUnit) | the test runner; the harness's `junit_xml` slot points at it |
+
+What the harness writes: O6.2 log lines in `.telemetry/runs/<run>/logs.jsonl` of the main checkout
+(worktrees included), with `service: "user-harness"`, the event name in `msg`, and `uh.schema`
+versioning the fields. Each `scripts/verify` is a run: it honours `TELEMETRY_RUN_ID`, creates the run
+otherwise, exports `TELEMETRY_RUN_ID` to the test commands it runs, and points `latest` at the run.
+Each Claude session has a `<ts>_session-<id>` run that never moves `latest`. The harness ships
+nothing and deletes nothing; long-term harness history lives in the shared backend once one exists.
+
+Tickets in a harnessed repo follow this (step 5 adapts them):
+
+- **T1:** the layout may already exist, created by the harness; reuse it. Session runs never take
+  `latest`. Rotation applies to harness runs too.
+- **T5:** produce the JUnit file and point `.uh/verify.toml`'s `[tests] junit_xml` at it, so verify
+  reads the same results; set the run from `TELEMETRY_RUN_ID` when present.
+- **T6:** the summary and query scripts read `service: user-harness` lines like any other service;
+  `summary` of a session run is valid but never the default.
+- **T9:** ship the harness's lines with the rest, under `service.name=user-harness`.
+- **T15:** the agent instructions go in `AGENTS.md`, never `CLAUDE.md` (which must stay `@AGENTS.md`),
+  each rule a bullet with an `HL-nnn` id and a row in `.uh/harness-log.md`, in its own harness-only
+  PR; `scripts/verify` checks this.
 
 ## 3. Decide the level and the add-ons
 
@@ -86,6 +125,8 @@ Then go through each **add-on**, and include it only if the user wants it:
 - **Front-end telemetry:** browser OTel SDK with trace propagation to the API, and web-vitals (2.16).
 - **Error tracking:** issue grouping beyond span exceptions (O2.6).
 - **Alerting and dashboards:** at level 3, or earlier if wanted (O2.5).
+- **Claude Code telemetry:** Claude Code's own metrics and events from this machine, sent to the
+  agreed collector (T16). Per machine, so skip it if an earlier run already set it up here.
 
 For every included item, agree the **tier**:
 
@@ -142,7 +183,8 @@ acceptance and dependencies, in the shape `ticket-pipeline` expects.
 | T12 | Code profiling | Continuous profiler agent sending to the agreed backend (O2.3) | A flame graph for the API appears under its service name |
 | T13 | Server and infra metrics | Host and container metrics, Prometheus scrape config, eBPF for services that can't be instrumented (O2.1, O4.1) | CPU, memory and request-rate metrics visible per service |
 | T14 | Alerting and dashboards | Error-rate and latency alerts routed to the agreed channel, one service dashboard, SLOs at level 3 (O2.5) | A test alert reaches the channel |
-| T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md`; mark items done in `docs/observability.md` | Instructions name only commands that exist and work |
+| T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md` (in a harnessed repo: `AGENTS.md` only, per "User harness"); mark items done in `docs/observability.md` | Instructions name only commands that exist and work; in a harnessed repo `scripts/verify` passes |
+| T16 | Claude Code telemetry | Per machine, not per repo: an env file sourced from the shell profile setting `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP exporters and the endpoint of the agreed collector, with prompt, response and tool-detail logging off; replaces a leftover `~/.config/user-harness/telemetry.env` | A Claude Code session's metrics arrive in the backend under its service name |
 
 ## 6. File and develop through ticket-pipeline
 
@@ -151,8 +193,9 @@ Read `~/.skills/ticket-pipeline/SKILL.md` and follow it, with these inputs:
 - **Plan doc:** `docs/observability.md`.
 - **Draft tickets:** from step 5.
 - **Presets:** "level-1 set" (T1, T2, T3, T5, T6, T15).
-- **Confirm-before:** T9, since it sends data to a shared service for the first time, and T10,
-  since it deploys outside the repo.
+- **Confirm-before:** T9, since it sends data to a shared service for the first time, T10,
+  since it deploys outside the repo, and T16, since it changes this machine's shell profile and
+  sends Claude Code's telemetry out.
 
 `ticket-pipeline` finds the tracker and the dev pipeline, confirms both with the user, files the
 tickets after the user approves the list, and develops them if the user decides to.

@@ -33,7 +33,7 @@ Look in this order and use the first that is clearly the project's own:
 
 1. The project's `CLAUDE.md` or `AGENTS.md`, or the harness docs (`.uh/`, `docs/agents/`), naming a board or tracker.
 2. `BOARD_ORG` and `BOARD_PROJECT` in `.claude/settings.json`: a GitHub Projects board, written
-   through the on-demand `gh-board` skill (read `~/.skills/gh-board/SKILL.md` first).
+   through the `gh-board` skill.
 3. A GitHub remote with issues in use (`gh issue list --limit 5`) or a linked project
    (`gh project list`), or a GitLab remote (`glab`).
 4. Jira or Linear keys (`ABC-123`) in commit messages, branch names or PR templates.
@@ -73,7 +73,7 @@ Find how work normally moves from ticket to merged code:
 - **Documented workflow:** steps in `CLAUDE.md` or `AGENTS.md`, or a ticket command or skill in
   `.claude/`. Use it as written.
 - **Board and PR conventions:** move each ticket through the board's statuses as work starts and
-  lands (`~/.skills/gh-board/SKILL.md`). Link each PR so merging closes its ticket (`gh-pr-linking`). Let CI run on
+  lands (the `gh-board` skill). Link each PR so merging closes its ticket (`gh-pr-linking`). Let CI run on
   each PR.
 
 Tell the user which pipeline you found and how you'll drive it before starting. If there is none,

@@ -86,7 +86,7 @@ needs a written reason (3.2, O4.8).
 | 11 | Linting and formatting | ruff (Python); Oxlint + Oxfmt (TS) | Both |
 | 12 | Testing | pytest, Vitest, Playwright | Both |
 | 13 | Accessibility | axe | Front end |
-| 14 | Packages, environments, task running | uv, pnpm 11, mise (versions), just (tasks), lefthook (hooks) | Both |
+| 14 | Packages, environments, task running | uv, pnpm 12, mise (versions), just (tasks), lefthook (hooks) | Both |
 | 15 | Quality gates and CI | codegen gate + others | Both |
 | 16 | Observability | OTel SDKs + Collector; SigNoz and Langfuse on ClickHouse; JSONL files locally (Part O) | Both |
 | 17 | Security and supply chain | release-age cooldowns, blocked install scripts, osv-scanner, Renovate, gitleaks, zizmor | Both |
@@ -386,7 +386,7 @@ Exclude generated files (`schema.d.ts`, any Orval/Hey API output) from both lint
 
 | Tool | What it is | Pros | Cons | Notes |
 |---|---|---|---|---|
-| **Vitest 4** | Vite-native test runner | Fast; shares Vite config; Jest-compatible API; native ESM and TS | Tied to the Vite ecosystem | Browser Mode stable since 4.0 (Oct 2025); visual regression and Playwright traces built in; MIT |
+| **Vitest 5** | Vite-native test runner | Fast; shares Vite config; Jest-compatible API; native ESM and TS | Tied to the Vite ecosystem | 5.0 Sep 2026 (Node 22+, Vite 6.4+; mocks cleared before each test by default; unawaited async assertions fail; JSON and JUnit reporters write under `.vitest/` by default). Browser Mode stable since 4.0 (Oct 2025); visual regression and Playwright traces built in; MIT |
 | **Vitest Browser Mode** | Component tests in a real browser via Playwright | Real layout, events, focus; no jsdom gaps | Slower than jsdom; needs browsers in CI | Use `vitest-browser-react` for rendering |
 | Testing Library (`@testing-library/react`) | DOM queries by role and text | Accessible-first queries | Async query timing pitfalls | Works in jsdom or browser mode |
 | jsdom / happy-dom | Simulated DOM | Fast unit tests of logic-heavy components | Less faithful (layout, focus, events) | |
@@ -433,7 +433,7 @@ Exclude generated files (`schema.d.ts`, any Orval/Hey API output) from both lint
 | Tool | What it is | Pros | Cons | Notes |
 |---|---|---|---|---|
 | **uv** | Python package and project manager | Very fast installs; `uv.lock`; Python version management; `uv run`; dependency cooldown (`exclude-newer`); `uv audit` | Single-vendor tool (Astral, acquired by OpenAI) | The 2026 default; MIT |
-| **pnpm 11** | Node package manager | Fast, strict (no phantom deps), disk-efficient. **Secure defaults:** 1-day `minimumReleaseAge`, dependency build scripts blocked unless listed in `allowBuilds`, `blockExoticSubdeps` on | Rare edge cases with packages assuming a flat `node_modules` | Requires Node 22+; settings moved from `.npmrc` to `pnpm-workspace.yaml`; MIT |
+| **pnpm 12** | Node package manager | Fast, strict (no phantom deps), disk-efficient. **Secure defaults:** 1-day `minimumReleaseAge`, dependency build scripts blocked unless listed in `allowBuilds`, `blockExoticSubdeps` on | Rare edge cases with packages assuming a flat `node_modules` | 12.0 Aug 2026 (unrecognized `pnpm-workspace.yaml` settings reported, fatal when the pinned pnpm is running; `engineStrict` fails on incompatible transitive deps; `--frozen-lockfile false` removed); 12.0 notes list no change to the secure defaults; requires Node 22+; settings in `pnpm-workspace.yaml`, not `.npmrc`; MIT |
 | npm 11 | Default Node package manager | Zero setup; `min-release-age` (opt-in) | Slowest; runs install scripts by default; phantom deps | Fine, but weaker defaults |
 | Yarn 4 (Berry) | Node package manager | Plug'n'Play removes `node_modules`; zero-installs; constraints engine for monorepos | Some packages assume `node_modules`; the fallback linker gives up PnP's benefits | Yarn 1 is in maintenance mode |
 | Bun | Runtime and package manager | Fastest installs; blocks lifecycle scripts by default (`trustedDependencies`) | Node compatibility gaps (e.g. some node-gyp modules) can fail at runtime | 1.3.x; not worth it for a Vite app on Node |
@@ -459,7 +459,7 @@ Exclude generated files (`schema.d.ts`, any Orval/Hey API output) from both lint
   ```
 
   CI uses `uv sync --locked` (fails if `uv.lock` and `pyproject.toml` disagree).
-- **pnpm 11** for Node, pinned via the `packageManager` field, CI uses `pnpm install --frozen-lockfile`. Keep the secure defaults and tighten the cooldown:
+- **pnpm 12** for Node, pinned via the `packageManager` field, CI uses `pnpm install --frozen-lockfile`. Keep the secure defaults and tighten the cooldown:
 
   ```yaml
   # pnpm-workspace.yaml
@@ -537,7 +537,7 @@ The threat that shaped 2025 to 2026 practice is **malicious releases of legitima
 | Layer | Tool / setting | What it does | Pros | Cons | Notes |
 |---|---|---|---|---|---|
 | **Cooldown** | pnpm `minimumReleaseAge`; uv `exclude-newer = "7 days"` | Ignores versions younger than the window | Blocks most poisoned releases, which are pulled within days | Delays urgent fixes | 7 days is a common default; use `exclude-newer-package` / per-package excludes for urgent fixes |
-| **Install scripts** | pnpm 11 `allowBuilds` (scripts blocked by default); `uv sync --no-build` where possible | Stops arbitrary code running at install time | Removes the most common payload trigger | Some native packages need explicit allow-listing | List the few packages that need builds explicitly |
+| **Install scripts** | pnpm `allowBuilds` (scripts blocked by default); `uv sync --no-build` where possible | Stops arbitrary code running at install time | Removes the most common payload trigger | Some native packages need explicit allow-listing | List the few packages that need builds explicitly |
 | **Source pinning** | pnpm `blockExoticSubdeps` (default on), `trustPolicy: no-downgrade`; uv explicit indexes | Blocks git/tarball transitive deps, trust downgrades, dependency confusion | Closes non-registry side doors | Occasional legitimate git deps need exceptions | |
 | **Locked installs** | `pnpm install --frozen-lockfile`, `uv sync --locked` | CI installs exactly what was reviewed | Reproducible | Lockfile churn in PRs | |
 | **Vulnerability scan** | **osv-scanner** (both lockfiles, one tool, OSV database); `uv audit`; `pnpm audit` | Known CVEs and malicious-package advisories | One open database and tool for both ecosystems | Only finds known issues | uv also has an experimental malware check against OSV MAL advisories (`UV_MALWARE_CHECK=1`). If a scanner reports zero deps for `pnpm-lock.yaml`, check it supports pnpm's lockfile format |
@@ -546,7 +546,7 @@ The threat that shaped 2025 to 2026 practice is **malicious releases of legitima
 | **CI hardening** | **zizmor**; pin GitHub Actions to commit SHAs; least-privilege `permissions:` | Catches injection and over-privileged workflows | Specific to GitHub Actions risks | GitHub Actions only | |
 | **Code** | ruff `S` (bandit) rules | Common insecure Python patterns | Already in ruff, just enable | Noisy in tests (scope per path) | |
 
-**Recommendation (chosen):** pnpm 11 and uv cooldowns at 7 days, install scripts allow-listed, frozen/locked installs in CI, **osv-scanner** as the single scanner for both ecosystems plus `uv audit`, **Renovate** with a matching `minimumReleaseAge`, **gitleaks** and **zizmor** in CI, Actions pinned to SHAs.
+**Recommendation (chosen):** pnpm and uv cooldowns at 7 days, install scripts allow-listed, frozen/locked installs in CI, **osv-scanner** as the single scanner for both ecosystems plus `uv audit`, **Renovate** with a matching `minimumReleaseAge`, **gitleaks** and **zizmor** in CI, Actions pinned to SHAs.
 
 **Agent notes:** agents add dependencies freely, and a cooldown also protects against an agent picking a version published an hour ago. Rules for the instructions file: new dependencies must be justified in the change summary; never add an `allowBuilds` entry or bypass the cooldown without saying why; the supply chain gate runs whenever a lockfile changes.
 
@@ -1039,7 +1039,7 @@ A catalog of components in their states, and catching unintended visual changes.
 | Storybook | Component workshop and docs | Industry standard; CSF stories reusable in tests; Vitest integration; MCP/agent skills (10.6) | Extra build and config surface; overlaps with Vitest browser mode | MIT. **10.x (10.0 Oct 2025, ESM-only; 10.6 Sep 2026)** |
 | Ladle | Lightweight Storybook alternative on Vite | Fast; CSF compatible | Low activity (last blog post 2023; verify) | MIT |
 | Histoire | Vite-native story tool | Fast | Vue/Svelte focus; React support limited (verify) | MIT |
-| **Vitest browser mode + `toMatchScreenshot`** | Component screenshots in a real browser | Already in the stack; same test files | Baselines are platform-sensitive | MIT. Vitest 4 |
+| **Vitest browser mode + `toMatchScreenshot`** | Component screenshots in a real browser | Already in the stack; same test files | Baselines are platform-sensitive | MIT. Vitest 5 |
 | **Playwright `toHaveScreenshot`** | Page and component screenshots | Already in the stack; baselines in git; masking and thresholds | No review UI; platform-dependent rendering | Apache 2.0 |
 | Chromatic | Hosted visual review for Storybook | Polished review workflow | SaaS, not open source; paid | Commercial |
 | Argos | Visual review service | MIT code; Playwright and Storybook integrations | Self-hosting unsupported in practice (per maintainer, Sept 2025) | MIT code, SaaS product |
@@ -1278,7 +1278,7 @@ Lab and operations UIs mix two very different chart workloads: a wide catalog of
 | API | FastAPI + pydantic + uvicorn | Same; this stack is already minimal |
 | Contract | openapi-typescript + gate + oasdiff + Schemathesis | `export_openapi.py` + `openapi-typescript` + `git diff --exit-code` |
 | Lint/format | ruff, Oxlint + Oxfmt, tiny ESLint for TanStack Query | ruff + oxlint + oxfmt with JSON output |
-| Packages / versions | uv + pnpm 11 with cooldowns, mise | uv + pnpm with lockfiles, `.nvmrc` + `.python-version` |
+| Packages / versions | uv + pnpm 12 with cooldowns, mise | uv + pnpm with lockfiles, `.nvmrc` + `.python-version` |
 | Git hooks | lefthook | A shell script in `.git/hooks/pre-commit` |
 | Supply chain | Cooldowns, osv-scanner, Renovate, gitleaks, zizmor | Cooldowns + `osv-scanner` run before merging |
 | Tests | pytest, Vitest (browser mode), Playwright | pytest + Vitest jsdom + one Playwright smoke test |
@@ -1520,7 +1520,7 @@ GROUP BY file ORDER BY failures DESC LIMIT 20;
 | Oxfmt | MIT | Chosen; beta (Feb 2026), 0.x as of Oct 2026 |
 | Biome | MIT / Apache 2.0 | v2.x (alternative) |
 | ESLint | MIT | v10 (TanStack Query plugin only) |
-| pnpm | MIT | 11 (secure defaults; Node 22+) |
+| pnpm | MIT | 12 (Aug 2026; secure defaults; Node 22+) |
 | mise | MIT | Stable |
 | just | CC0 | Stable |
 | lefthook | MIT | Stable |
@@ -1529,7 +1529,7 @@ GROUP BY file ORDER BY failures DESC LIMIT 20;
 | gitleaks | MIT | Stable |
 | zizmor | MIT | Stable |
 | pytest, Hypothesis | MIT / MPL 2.0 | Stable |
-| Vitest | MIT | v4 (Browser Mode stable) |
+| Vitest | MIT | v5 (Sep 2026; Browser Mode stable) |
 | Playwright | Apache 2.0 | Test agents since v1.56 |
 | axe-core, @axe-core/playwright | MPL 2.0 | Stable; WCAG 2.2 tags |
 | **Alternatives and slot options added in Sections 2 and 3** | | |
@@ -1654,6 +1654,7 @@ Licenses marked * were not re-checked in this pass; confirm in each project's re
 - [Simon Willison on Ruff, ty, and Astral](https://simonwillison.net/tags/astral/)
 - [Vitest 4 announcement](https://voidzero.dev/posts/announcing-vitest-4)
 - [Vitest 4 Browser Mode (InfoQ)](https://www.infoq.com/news/2025/12/vitest-4-browser-mode)
+- [Vitest 5.0.0 release notes](https://github.com/vitest-dev/vitest/releases/tag/v5.0.0)
 - [Playwright test agents guide](https://testdino.com/blog/playwright-test-agents/)
 - [Playwright agents with Claude Code](https://stevekinney.com/courses/self-testing-ai-agents/generate-and-heal-with-playwright-agents-solution)
 - [Playwright accessibility testing with axe](https://qaskills.sh/blog/playwright-accessibility-testing-axe-complete-guide)
@@ -1663,6 +1664,7 @@ Licenses marked * were not re-checked in this pass; confirm in each project's re
 - [Oxlint JS plugins alpha](https://oxc.rs/blog/2026-03-11-oxlint-js-plugins-alpha)
 - [Biome useSortedClasses](https://biomejs.dev/linter/rules/use-sorted-classes)
 - [pnpm 11.0 release notes](https://pnpm.io/blog/releases/11.0)
+- [pnpm 12.0.0 release notes](https://github.com/pnpm/pnpm/releases/tag/v12.0.0)
 - [pnpm supply chain security](https://pnpm.io/supply-chain-security)
 - [pnpm vs Bun vs npm 2026](https://www.pkgpulse.com/guides/pnpm-vs-bun-vs-npm-2026)
 - [Protecting against Python supply chain attacks with uv](https://pydevtools.com/handbook/how-to/how-to-protect-against-python-supply-chain-attacks-with-uv/)
@@ -2341,4 +2343,5 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 
 | Date | Change |
 |---|---|
+| 2026-10-23 | pnpm 12 (Aug 2026) and Vitest 5 (Sep 2026) replace pnpm 11 and Vitest 4 as current majors; picks unchanged. |
 | 2026-10-23 | Created from the web stack and observability research notes (Google Drive, Research folder), status as of October 2026. |

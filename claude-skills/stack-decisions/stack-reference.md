@@ -2126,7 +2126,7 @@ In every variant, instrumentation and the Collector stay identical. Changing bac
 **Log line schema:**
 
 ```json
-{"ts":"2026-10-23T14:02:11Z","level":"error","service":"api","run_id":"ab12","git_sha":"3f9c2e1","git_dirty":false,"trace_id":"a1b2","span_id":"c3d4","msg":"payment failed","error.type":"CardDeclined","error.fingerprint":"e7f1","user_id":482}
+{"ts":"2026-10-23T14:02:11Z","level":"error","service":"api","run_id":"ab12","git_sha":"3f9c2e1a7b4d6e8f0a1b2c3d4e5f60718293a4b5","git_dirty":false,"trace_id":"a1b2","span_id":"c3d4","msg":"payment failed","error.type":"CardDeclined","error.fingerprint":"e7f1","user_id":482}
 ```
 
 **Span line schema:**
@@ -2138,15 +2138,24 @@ In every variant, instrumentation and the Collector stay identical. Changing bac
 **LLM call line schema:**
 
 ```json
-{"trace_id":"a1b2","span_id":"f5g6","model":"<model-name>","input_tokens":1840,"output_tokens":212,"cost_usd":0.0031,"latency_ms":1420,"input_preview":"You are a support agent...","output_preview":"I can help with that...","payload_ref":"payloads/f5g6.json"}
+{"trace_id":"a1b2","span_id":"f5g6","provider":"anthropic","request_model":"<model-alias-or-id>","response_model":"<model-id-the-provider-returned>","response_id":"msg_01...","gen_config":{"temperature":0.2,"max_tokens":1024},"prompt_name":"support-reply","prompt_version":7,"input_tokens":1840,"output_tokens":212,"cost_usd":0.0031,"latency_ms":1420,"input_preview":"You are a support agent...","output_preview":"I can help with that...","payload_ref":"payloads/f5g6.json"}
 ```
+
+`request_model` is what the code asked for (often an alias); `response_model` is what the provider says
+answered (the snapshot). Record both: an alias that moves changes results with no code change. `provider` tells
+apart the same model served by different providers (the vendor API, Bedrock, Vertex, a gateway or fallback).
+`prompt_name` and `prompt_version` come from prompt management when it is used (O2.4), otherwise a hash of the
+prompt template.
 
 **Summary file (written at end of every run):**
 
 ```json
 {
   "run_id": "ab12",
-  "git_sha": "3f9c2e1",
+  "service_version": "1.4.2",
+  "git_sha": "3f9c2e1a7b4d6e8f0a1b2c3d4e5f60718293a4b5",
+  "git_dirty": true,
+  "git_diff_ref": "payloads/git-diff.patch",
   "exit_status": 1,
   "duration_s": 48.2,
   "counts": {"debug": 1203, "info": 412, "warn": 9, "error": 37},
@@ -2164,12 +2173,33 @@ In every variant, instrumentation and the Collector stay identical. Changing bac
 
 - **Write `summary.json` every run.** The agent reads it first and drills in only where needed. Highest-value habit.
 - **Stable, flat schema.** Fixed field names, UTC ISO 8601 timestamps, no renames between versions.
-- **Stamp context on every line.** `run_id`, git SHA, dirty flag.
+- **Stamp context on every line.** `run_id`, git SHA, dirty flag. Use the full SHA; short ones become ambiguous.
+  The tree is dirty when `git status --porcelain` prints anything (untracked files count).
+- **Record the diff when dirty.** A dirty flag alone can't be reproduced: write `git diff HEAD` to
+  `payloads/git-diff.patch` and point `git_diff_ref` at it.
 - **Keep lines small.** Truncate large fields to a few hundred characters; store full payloads in `payloads/` by ID.
 - **Fingerprint errors.** Hash of error type plus top stack frame, so the agent sees "3 distinct errors, 400 occurrences."
 - **Redact at write time.** Secrets, tokens, personal data never hit disk.
 - **Separate human and machine output.** Friendly console, structured files.
 - **Clean up automatically.** Keep the last N runs; gitignore `.telemetry/`.
+
+**Version provenance in exported data.** Local runs are rotated away, so the backend must carry the version
+on its own. Set it once per process on the OTel Resource, which every span, metric and log from that provider
+carries, and give the same version string to every tool with a release field:
+
+| Local field | Exported as | Notes |
+|---|---|---|
+| `service_version` | Resource `service.version` (Stable) | Free format: a semver or the SHA. Set through `OTEL_RESOURCE_ATTRIBUTES` (values percent-encoded) or in code; `OTEL_SERVICE_VERSION` is not in the spec |
+| environment | Resource `deployment.environment.name` (Stable), plus the deprecated `deployment.environment` | SigNoz's Services view still keys on the old name; the new one needs a feature flag (Oct 2026) |
+| `git_sha` | Resource `vcs.ref.head.revision` (Release Candidate) | OTel defines it for VCS entities; putting it on a service Resource is our convention, not documented practice |
+| repository | Resource `vcs.repository.url.full` (Release Candidate) | HTTPS URL without `.git` |
+| `git_dirty` | Resource `vcs.ref.head.dirty` (our own; OTel has no dirty attribute) | MLflow's `mlflow.source.git.dirty` is the naming precedent |
+| `service_version` | Langfuse `release` via `LANGFUSE_RELEASE` or `langfuse.release` | Langfuse reads `service.version` into observation `version`, not `release`; other Resource attributes land in non-filterable metadata, so use `langfuse.trace.metadata.*` for anything to filter on |
+| `service_version` | Sentry/GlitchTip `release`, as `<project>@<version>` | Releases are org-global; create the release and set commits before events arrive |
+| `provider`, `request_model`, `response_model`, `response_id` | `gen_ai.provider.name`, `gen_ai.request.model`, `gen_ai.response.model`, `gen_ai.response.id` (Development) | Langfuse prefers the response model when both are set |
+
+A per-commit `service.version` is fine for filtering traces and logs; don't add it as a span-metrics dimension,
+which multiplies time series.
 
 ### O6.3 Query recipes
 
@@ -2252,6 +2282,8 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 
 - Keep an eval set as JSONL: input cases plus expected properties.
 - A script runs every case, writes per-case transcripts and scores to the run directory, and adds a line to the summary, e.g. `"evals": {"passed": 42, "total": 50, "avg_cost_usd": 0.003}`.
+- Every eval run records what produced its scores, in the summary's `evals` object: `git_sha`, `git_dirty` and `git_diff_ref`; `provider`, `request_model`, `response_model` and `gen_config` of the system under test; the dataset's name and pinned version (a Langfuse dataset version timestamp, or a version you assign); the scorer's name, version and arguments, including the judge's model and prompt version for an LLM judge; and the eval's own version. Inspect AI's `EvalSpec` records the same set as structured fields; Langfuse and Braintrust put them in run metadata.
+- A baseline must come from a clean tree (`git_dirty: false`), and `diff` refuses to compare runs whose dataset versions or scorer versions differ. This is our policy: the tools surveyed record the dirty flag and diff but don't refuse.
 - The agent treats prompt and agent changes like code changes with tests, and diffs eval results against the baseline.
 - Production equivalent: Langfuse datasets and experiments.
 
@@ -2262,7 +2294,7 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 - **Log content is untrusted input.** A malicious string in a log line could try to instruct the agent; treat telemetry as data, not instructions.
 - **Keep secrets out of logs entirely.** Anything the agent reads may end up in its context, outputs, or commit messages.
 - Mind cost when agents run LLM-backed analysis over large telemetry; filter first.
-- **Pin GenAI instrumentation versions.** The OTel GenAI conventions are still at Development stability; record which schema version your instrumentation emits.
+- **Pin GenAI instrumentation versions.** The OTel GenAI conventions are still at Development stability and have moved out of core semantic conventions into their own repository (semantic-conventions-genai, no tagged release as of Oct 2026); record which instrumentation version and conventions commit your code emits.
 
 ---
 
@@ -2319,6 +2351,19 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 - Grafana, OBI vs Beyla: https://grafana.com/docs/beyla/latest/obi/
 - OpenTelemetry, Collector Builder (OCB): https://opentelemetry.io/docs/collector/extend/ocb/
 - Dash0, OTel GenAI semantic conventions explained: https://www.dash0.com/knowledge/opentelemetry-genai-semantic-conventions-explained
+- OTel semconv, service attributes: https://opentelemetry.io/docs/specs/semconv/registry/attributes/service/
+- OTel semconv, VCS attributes: https://opentelemetry.io/docs/specs/semconv/registry/attributes/vcs/
+- OTel semconv, deployment environment: https://opentelemetry.io/docs/specs/semconv/resource/deployment-environment/
+- OTel resource SDK spec (OTEL_RESOURCE_ATTRIBUTES): https://opentelemetry.io/docs/specs/otel/resource/sdk/
+- OTel GenAI semantic conventions repository: https://github.com/open-telemetry/semantic-conventions-genai
+- SigNoz, set custom attributes: https://signoz.io/docs/ingestion/set-custom-attributes/
+- SigNoz, deployment.environment.name support: https://github.com/SigNoz/signoz/issues/6921
+- Sentry, releases (Python): https://docs.sentry.io/platforms/python/configuration/releases/
+- Langfuse, releases and versioning: https://langfuse.com/docs/observability/features/releases-and-versioning
+- Langfuse, OpenTelemetry attribute mapping: https://langfuse.com/integrations/native/opentelemetry
+- Langfuse, dataset versioning: https://langfuse.com/docs/evaluation/experiments/datasets
+- Inspect AI, eval log schema: https://github.com/UKGovernmentBEIS/inspect_ai/blob/main/src/inspect_ai/log/_log.py
+- MLflow, git tags: https://github.com/mlflow/mlflow/blob/master/mlflow/utils/mlflow_tags.py
 - DEV.co, Vector profile: https://dev.co/observability/open-source/vector
 - DEV.co, Grafana Agent end of life: https://dev.co/observability/open-source/grafana-agent
 - DEV.co, Grafana Alloy profile: https://dev.co/observability/open-source/alloy
@@ -2343,5 +2388,6 @@ Telemetry shows *what happened*; evals show *whether it got better*.
 
 | Date | Change |
 |---|---|
+| 2026-10-24 | O6.2/O6.7: version provenance. Full SHA, dirty definition and diff; provider, request and response model, response ID and prompt version on LLM lines; export mapping to `service.version`, `deployment.environment.name`, `vcs.*`, Langfuse and Sentry release; eval runs record dataset, scorer and model versions; GenAI conventions moved repository. |
 | 2026-10-23 | pnpm 12 (Aug 2026) and Vitest 5 (Sep 2026) replace pnpm 11 and Vitest 4 as current majors; picks unchanged. |
 | 2026-10-23 | Created from the web stack and observability research notes (Google Drive, Research folder), status as of October 2026. |

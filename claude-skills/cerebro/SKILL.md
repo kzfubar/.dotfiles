@@ -45,9 +45,12 @@ python cerebro_client.py withdraw <project> <id>
 
 ## Writing a request
 
-The user is a non-specialist for most projects and must be able to decide on the first read. The request's `id` is
-the decision's **ticket** (`T-0311`, `GH-42`), shown before the title; give `url`, the ticket's link, whenever the
-tracker has one.
+The user is a non-specialist for most projects and must be able to decide on the first read.
+
+- `id`: the project's own id for the decision (`D-0033`), stable across revisions.
+- `ticket`: the ticket it belongs to, `{"ref": "T-0206", "url": "https://..."}` (or just `"T-0206"`). The page shows
+  it before the title, so give it whenever there is one, with the `url` when the tracker has links; one ticket may
+  have several decisions.
 
 - `title`: the decision as a short question, in plain words.
 - `revision`: any string you choose; change it whenever the content changes (same revision + other content = 409).

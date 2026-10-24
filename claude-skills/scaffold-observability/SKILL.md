@@ -126,7 +126,50 @@ Then go through each **add-on**, and include it only if the user wants it:
 - **Error tracking:** issue grouping beyond span exceptions (O2.6).
 - **Alerting and dashboards:** at level 3, or earlier if wanted (O2.5).
 - **Claude Code telemetry:** Claude Code's own metrics and events from this machine, sent to the
-  agreed collector (T16). Per machine, so skip it if an earlier run already set it up here.
+  agreed collector (T16). Per machine, so skip it if an earlier run already set it up here. If it
+  is included, agree the content capture below.
+
+### Claude Code content capture
+
+By default Claude Code's telemetry carries metrics and event metadata, with no conversation content.
+Content is opt-in, one variable per kind, and each sits on top of `CLAUDE_CODE_ENABLE_TELEMETRY=1`
+(source: https://code.claude.com/docs/en/monitoring-usage, read 2026-10-24; re-check it before
+writing T16):
+
+| Variable | Adds |
+|---|---|
+| `OTEL_LOG_USER_PROMPTS=1` | Prompt text on `user_prompt` events |
+| `OTEL_LOG_ASSISTANT_RESPONSES=1` | Response text on `assistant_response` events; when unset it follows `OTEL_LOG_USER_PROMPTS` |
+| `OTEL_LOG_TOOL_DETAILS=1` | Tool inputs (Bash commands, file paths, MCP, skill and agent names) |
+| `OTEL_LOG_TOOL_CONTENT=1` | Tool output (file text read, command output) on `tool.output` span events; needs tracing (`CLAUDE_CODE_ENHANCED_TELEMETRY_BETA=1` and `OTEL_TRACES_EXPORTER`) |
+| `OTEL_LOG_RAW_API_BODIES=1` or `file:<dir>` | Every API request and response body, which holds the whole conversation (system prompt, turns, tool results; extended thinking is always redacted). This is the closest to a full transcript. `1` puts the bodies inline, truncated at `CLAUDE_CODE_OTEL_CONTENT_MAX_LENGTH` (60 KB default); `file:<dir>` writes them whole to disk with a `body_ref` in the event |
+
+Subagents use the same switches. Their events carry `agent_id` and `parent_agent_id` (absent on the
+main session; Claude Code v2.1.310 or later), and `query_source` names the subagent. Their trace
+spans nest under the parent's `Agent` tool span, and `subagent_completed` sums each run. Three gaps:
+- the docs don't say whether the raw body events carry `agent_id`;
+- the task prompt a subagent receives is not a `user_prompt` event, so it is only in the parent's tool details or the raw bodies;
+- custom agent names show as `"custom"` unless `OTEL_LOG_TOOL_DETAILS` is on.
+
+Claude Code ignores these variables in a repo's `.claude/settings.json` and
+`.claude/settings.local.json`, so content capture is a per-machine choice made in T16 and never
+a harness or repo setting. Without any of it, full transcripts, subagents' included, already sit on
+this machine at `~/.claude/projects/<project>/<session-id>.jsonl` and
+`<session-id>/subagents/agent-<id>.jsonl`.
+
+Ask which level to capture, with "off" first and recommended:
+
+| Level | Variables set to `1` |
+|---|---|
+| **off** (default) | none |
+| **prompts and responses** | `OTEL_LOG_USER_PROMPTS`, `OTEL_LOG_ASSISTANT_RESPONSES` |
+| **plus tools** | the above, plus `OTEL_LOG_TOOL_DETAILS` and, if tracing is on, `OTEL_LOG_TOOL_CONTENT` |
+| **full transcripts** | the above, plus `OTEL_LOG_RAW_API_BODIES` |
+
+Content holds secrets, `.env` values that a tool read, and file contents. Offer anything above
+"off" only when the collector and backend are on this machine or private to the user, never a
+backend other people can read. Record the level and its reason under "Redaction and retention" in
+`docs/observability.md`.
 
 For every included item, agree the **tier**:
 
@@ -184,7 +227,7 @@ acceptance and dependencies, in the shape `ticket-pipeline` expects.
 | T13 | Server and infra metrics | Host and container metrics, Prometheus scrape config, eBPF for services that can't be instrumented (O2.1, O4.1) | CPU, memory and request-rate metrics visible per service |
 | T14 | Alerting and dashboards | Error-rate and latency alerts routed to the agreed channel, one service dashboard, SLOs at level 3 (O2.5) | A test alert reaches the channel |
 | T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md` (in a harnessed repo: `AGENTS.md` only, per "User harness"); mark items done in `docs/observability.md` | Instructions name only commands that exist and work; in a harnessed repo `scripts/verify` passes |
-| T16 | Claude Code telemetry | Per machine, not per repo: an env file sourced from the shell profile setting `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP exporters and the endpoint of the agreed collector, with prompt, response and tool-detail logging off; replaces a leftover `~/.config/user-harness/telemetry.env` | A Claude Code session's metrics arrive in the backend under its service name |
+| T16 | Claude Code telemetry | Per machine, not per repo: an env file sourced from the shell profile setting `CLAUDE_CODE_ENABLE_TELEMETRY=1`, the OTLP exporters and the endpoint of the agreed collector, and the content variables for the agreed capture level (all off by default; see "Claude Code content capture"); replaces a leftover `~/.config/user-harness/telemetry.env` | A Claude Code session's metrics arrive in the backend under its service name; content appears only at the agreed level (a prompt's text shows on `user_prompt` exactly when the level includes prompts) |
 
 ## 6. File and develop through ticket-pipeline
 
@@ -195,7 +238,7 @@ Read `~/.skills/ticket-pipeline/SKILL.md` and follow it, with these inputs:
 - **Presets:** "level-1 set" (T1, T2, T3, T5, T6, T15).
 - **Confirm-before:** T9, since it sends data to a shared service for the first time, T10,
   since it deploys outside the repo, and T16, since it changes this machine's shell profile and
-  sends Claude Code's telemetry out.
+  sends Claude Code's telemetry out (and, above "off", conversation content).
 
 `ticket-pipeline` finds the tracker and the dev pipeline, confirms both with the user, files the
 tickets after the user approves the list, and develops them if the user decides to.

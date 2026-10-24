@@ -1,6 +1,5 @@
 if [ -x /opt/homebrew/bin/brew ]; then eval "$(/opt/homebrew/bin/brew shellenv)"; fi
-export PATH="$PATH:$HOME/.local/bin"
-export EDITOR=vim
+source "$HOME/.dotfiles/shell/common.sh"
 
 export ZSH="$HOME/.oh-my-zsh"
 ZSH_THEME="robbyrussell"
@@ -8,24 +7,3 @@ plugins=(zsh-z)
 source $ZSH/oh-my-zsh.sh
 
 eval "$(direnv hook zsh)"
-
-# user-harness telemetry settings, written by `uh telemetry setup`
-[ -f "$HOME/.config/user-harness/telemetry.env" ] && source "$HOME/.config/user-harness/telemetry.env"
-
-# cl: run claude in ~/scratch, or in the given dir. Extra args go to claude.
-cl() {
-  local dir
-  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
-    dir="$1"; shift
-  else
-    dir="$HOME/scratch"
-    mkdir -p "$dir"
-  fi
-  (cd "$dir" && claude "$@")
-}
-
-# fixkeys: turn off keyboard modes a crashed program left on, so ctrl keys work again
-fixkeys() { printf '\e[<u\e[>4;0m' }
-
-# g: short for git
-alias g=git

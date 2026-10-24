@@ -21,6 +21,12 @@ shopt -s histappend
 bind 'set completion-ignore-case on'
 bind 'set show-all-if-ambiguous on'
 
+# oh-my-zsh's ls aliases, which zsh gets from oh-my-zsh
+alias l='ls -lah'
+alias ll='ls -lh'
+alias la='ls -lAh'
+alias lsa='ls -lah'
+
 command -v starship >/dev/null && eval "$(starship init bash)"
 # z <part of a dir>: jump to a frequently used directory, like zsh-z; last, as zoxide asks
 command -v zoxide >/dev/null && eval "$(zoxide init bash)"

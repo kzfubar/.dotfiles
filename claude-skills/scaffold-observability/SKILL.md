@@ -1,14 +1,13 @@
 ---
 name: scaffold-observability
-description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level of observability, which add-ons to include (LLM observability, evals, profiling, server metrics, test telemetry, front-end, error tracking, alerting), what to share across projects and what to keep separate, and raw files versus standard tools per item, with versions from the stack reference. Writes docs/observability.md with the decisions, then finds the project's ticketing pipeline and, once the user confirms, files one ticket per unit of work; if the user decides to go ahead, develops the tickets through the project's own dev pipeline, or directly when it has none. Use when asked to add or plan logging, tracing, metrics, telemetry, monitoring, LLM tracing, profiling or error tracking, or to set up or connect to an observability stack. Triggers on "set up observability", "add telemetry", "add tracing", "plan observability", "trace the LLM calls", "connect to SigNoz/Langfuse".
+description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level of observability, which add-ons to include (LLM observability, evals, profiling, server metrics, test telemetry, front-end, error tracking, alerting), what to share across projects and what to keep separate, and raw files versus standard tools per item, with versions from the stack reference. Writes docs/observability.md with the decisions, drafts one ticket per unit of work, and hands them to ticket-pipeline, which files them in the project's tracker once the user confirms and, if the user decides, develops them through the project's dev pipeline. Use when asked to add or plan logging, tracing, metrics, telemetry, monitoring, LLM tracing, profiling or error tracking, or to set up or connect to an observability stack. Triggers on "set up observability", "add telemetry", "add tracing", "plan observability", "trace the LLM calls", "connect to SigNoz/Langfuse".
 ---
 
 # scaffold-observability
 
-Plans a project's observability with the user, documents the decisions, turns the work into
-tickets in the project's own pipeline, and, if the user decides to, develops those tickets. Until
-the user makes that decision (step 7), the only file it writes in the project is
-`docs/observability.md`.
+Plans a project's observability with the user, documents the decisions, and drafts the work as
+tickets. The `ticket-pipeline` skill files them and, if the user decides to, develops them (step
+6). Until then, the only file this skill writes in the project is `docs/observability.md`.
 
 The stack reference, `~/.claude/skills/stack-decisions/stack-reference.md`, sections O1 to O8 and
 2.16, holds the tools, tradeoffs, defaults, schemas and versions. Read the sections you need
@@ -120,42 +119,12 @@ survive even if ticketing stops:
 
 If `docs/stack.md` exists, point its observability row at this file.
 
-## 5. Find the ticketing pipeline
-
-Look for it in this order and use the first that is clearly the project's own:
-
-1. The project's `CLAUDE.md` or `AGENTS.md`, or the harness docs in `.uh/`, naming a board or tracker.
-2. `BOARD_ORG` and `BOARD_PROJECT` in `.claude/settings.json`: a GitHub Projects board, written
-   through the `gh-board` skill.
-3. A GitHub remote with issues in use (`gh issue list --limit 5`) or a linked project
-   (`gh project list`); a GitLab remote (`glab`).
-4. Jira or Linear keys (`ABC-123`) in commit messages, branch names or PR templates.
-5. A tracking file in the repo (`TODO.md`, `ROADMAP.md`, `docs/tasks/`).
-
-Then confirm the pipeline with the user, even when it seems obvious. If none exists, offer GitHub
-issues on the repo or a `docs/observability-tasks.md` checklist. Before writing, read the
-pipeline's conventions (issue templates, labels, board fields and statuses, how dependencies are
-linked) and follow them.
-
-## 6. Draft, confirm, file
+## 5. Draft the tickets
 
 Draft one ticket per unit of work from the catalogue below, for the items agreed in step 3 only,
-in dependency order. Every ticket has:
-
-- **Title** in the tracker's style.
-- **Context:** one paragraph, and a link to the relevant `docs/observability.md` section.
-- **Scope:** what to build, with file paths from the audit, tools, versions, reference sections.
-- **Acceptance:** commands that prove it works, and their expected output.
-- **Depends on:** the tickets that must land first.
-
-Show the user the complete list (titles, dependencies, one-line scope each) and ask for changes.
-File nothing until they confirm. Then create the tickets, link the dependencies the way the
-tracker does, write each ticket's link into the decision table in `docs/observability.md`, and
-report the links.
-
-### Ticket catalogue
-
-Take the tickets that apply, adapt each to the audit, split any that are too big for one PR.
+in dependency order. Adapt each to the audit: file paths, the frameworks found, the key operations
+named. Each ticket gets a title, context linking its `docs/observability.md` section, scope,
+acceptance and dependencies, in the shape `ticket-pipeline` expects.
 
 | # | Ticket | Scope | Acceptance |
 |---|---|---|---|
@@ -175,48 +144,20 @@ Take the tickets that apply, adapt each to the audit, split any that are too big
 | T14 | Alerting and dashboards | Error-rate and latency alerts routed to the agreed channel, one service dashboard, SLOs at level 3 (O2.5) | A test alert reaches the channel |
 | T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md`; mark items done in `docs/observability.md` | Instructions name only commands that exist and work |
 
-## 7. Develop the tickets, if the user decides to
+## 6. File and develop through ticket-pipeline
 
-Ask the user whether to develop the tickets now, and which: all, the level-1 set (T1, T2, T3, T5,
-T6, T15), or a chosen list. In the same question, settle how the work lands: the pipeline's own
-way, or, without a pipeline, commits on a branch, a PR, or uncommitted changes for review. Stop
-here if they say no.
+Hand the work to the `ticket-pipeline` skill with:
 
-**Find the dev pipeline**, the way work normally moves from ticket to merged code:
+- **Plan doc:** `docs/observability.md`.
+- **Draft tickets:** from step 5.
+- **Presets:** "level-1 set" (T1, T2, T3, T5, T6, T15).
+- **Confirm-before:** T9, since it sends data to a shared service for the first time, and T10,
+  since it deploys outside the repo.
 
-- **User harness** (`.uh/` and `docs/agents/orchestration.md`): follow it exactly. That means a
-  worktree and branch per feature, `testwriter` then `coder`, a `Paths:` line and a `Ticket: #N`
-  line in every subagent prompt, `scripts/verify`, friction entries, and a PR per ticket. The
-  main session orchestrates and does not edit `src/` or `tests/` itself.
-- **Instructions or project skills:** a workflow in `CLAUDE.md` or `AGENTS.md`, or a ticket
-  command or skill in `.claude/`. Use it as written.
-- **Board and PR conventions:** move each ticket through the board's statuses as work starts and
-  lands (`gh-board`), and link each PR so merging closes its ticket (`gh-pr-linking`). Let CI run
-  on each PR.
+`ticket-pipeline` finds the tracker and the dev pipeline, confirms both with the user, files the
+tickets after the user approves the list, and develops them if the user decides to.
 
-Name the pipeline you found, and how you'll drive it, to the user before starting.
-
-**If there is no pipeline,** develop the tickets directly. Branch first if on the default branch,
-implement one ticket at a time, run its acceptance commands and the project's own checks, show
-their output, and land it the way the user chose.
-
-**Either way:**
-
-- Work in dependency order. Run independent tickets in parallel only where the pipeline allows it
-  (separate worktrees, no overlapping paths).
-- A ticket is done when its acceptance commands pass, with output shown. Never mark it done
-  because the code looks right.
-- After each ticket lands, update its row in `docs/observability.md` and its status in the
-  tracker.
-- Stop and ask before T10 (deploying a platform) or T9 (first data sent to a shared service),
-  since both act outside the repo. Also stop and ask when a ticket's scope turns out wrong, when
-  acceptance keeps failing, or when a credential is missing. For a missing credential, add the
-  key to `.env` with an empty value and to `.env.example`, say which key, and stop.
-
-## 8. Report
+## 7. Report
 
 Give the user: the level and add-ons chosen, what is shared and what is kept separate, the link to
-`docs/observability.md`, the ticket links in order, and, for developed tickets, what landed
-(PRs, branches or commits) and what is still open. Commit `docs/observability.md` only if the
-user asks or the pipeline commits it with the first ticket, on a branch if the repo is on its
-default branch.
+`docs/observability.md`, and `ticket-pipeline`'s report (ticket links, what landed, what is open).

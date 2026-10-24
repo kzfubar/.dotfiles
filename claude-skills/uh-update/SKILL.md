@@ -25,8 +25,8 @@ Don't ask them as plain text, and don't guess an answer to keep going. Common on
 - **No GitHub remote** (`git remote` is empty, or `gh repo view` fails). Options: create a private repo with
   `gh repo create <name> --private --source . --remote origin` (Recommended), create a public one, or continue
   locally: commit on the branch and skip the push and PR.
-- **No project board.** The repo's `.claude/settings.json` has no `BOARD_ORG` / `BOARD_PROJECT` in `env` (see the
-  `gh-board` skill). Options: skip for now, create one with `gh project create --owner <owner> --title <repo>` and
+- **No project board.** The repo's `.claude/settings.json` has no `BOARD_ORG` / `BOARD_PROJECT` in `env` (see
+  `~/.skills/gh-board/SKILL.md`). Options: skip for now, create one with `gh project create --owner <owner> --title <repo>` and
   link it with `gh project link <number> --owner <owner> --repo <repo>`, or use an existing board (the user
   gives owner and number under "Other"). Write the chosen pair into the repo's `.claude/settings.json` `env`; the
   update commit carries it.

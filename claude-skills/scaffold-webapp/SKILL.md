@@ -6,7 +6,7 @@ description: Plan and build a web app on the default stack from the stack refere
 # scaffold-webapp
 
 Plans a project's web stack with the user, documents the decisions, and drafts the work as
-tickets. The `ticket-pipeline` skill files them and, if the user decides to, develops them (step
+tickets. The on-demand `ticket-pipeline` skill (`~/.skills/ticket-pipeline/SKILL.md`) files them and, if the user decides to, develops them (step
 6). Until then, the only file this skill writes in the project is `docs/stack.md`.
 
 The stack reference, `~/.claude/skills/stack-decisions/stack-reference.md`, holds the tools,
@@ -134,7 +134,7 @@ Optional domains for W9:
 
 ## 6. File and develop through ticket-pipeline
 
-Hand the work to the `ticket-pipeline` skill with:
+Read `~/.skills/ticket-pipeline/SKILL.md` and follow it, with these inputs:
 
 - **Plan doc:** `docs/stack.md`.
 - **Draft tickets:** from step 5.

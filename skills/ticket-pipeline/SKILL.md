@@ -1,6 +1,6 @@
 ---
 name: ticket-pipeline
-description: Turn a planned body of work into tickets in a project's own ticketing pipeline and, if the user decides, develop them through the project's dev pipeline, or directly when it has none. Discovers the tracker (GitHub Projects board, GitHub or GitLab issues, Jira or Linear, a task file) and the dev workflow (user harness orchestration, documented workflow, board and PR conventions), confirms both with the user, files tickets only after the user approves the list, then develops them in dependency order with acceptance commands as the definition of done. Used by scaffold-webapp and scaffold-observability; also use directly when asked to file a plan as tickets, break work into tickets, or work through a set of tickets. Triggers on "file these as tickets", "break this into tickets", "work through the tickets", "develop the tickets".
+description: Turn a planned body of work into tickets in a project's own ticketing pipeline and, if the user decides, develop them through the project's dev pipeline, or directly when it has none. Discovers the tracker (GitHub Projects board, GitHub or GitLab issues, Jira or Linear, a task file) and the dev workflow (user harness orchestration, documented workflow, board and PR conventions), confirms both with the user, files tickets only after the user approves the list, then develops them in dependency order with acceptance commands as the definition of done. On-demand: read by path from scaffold-webapp and scaffold-observability, or when the user points at it.
 ---
 
 # ticket-pipeline

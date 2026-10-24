@@ -6,7 +6,7 @@ description: Plan observability for a project with the user and file the work as
 # scaffold-observability
 
 Plans a project's observability with the user, documents the decisions, and drafts the work as
-tickets. The `ticket-pipeline` skill files them and, if the user decides to, develops them (step
+tickets. The on-demand `ticket-pipeline` skill (`~/.skills/ticket-pipeline/SKILL.md`) files them and, if the user decides to, develops them (step
 6). Until then, the only file this skill writes in the project is `docs/observability.md`.
 
 The stack reference, `~/.claude/skills/stack-decisions/stack-reference.md`, sections O1 to O8 and
@@ -146,7 +146,7 @@ acceptance and dependencies, in the shape `ticket-pipeline` expects.
 
 ## 6. File and develop through ticket-pipeline
 
-Hand the work to the `ticket-pipeline` skill with:
+Read `~/.skills/ticket-pipeline/SKILL.md` and follow it, with these inputs:
 
 - **Plan doc:** `docs/observability.md`.
 - **Draft tickets:** from step 5.

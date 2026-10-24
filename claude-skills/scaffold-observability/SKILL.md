@@ -1,13 +1,14 @@
 ---
 name: scaffold-observability
-description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level of observability, which add-ons to include (LLM observability, evals, profiling, server metrics, test telemetry, front-end, error tracking, alerting), what to share across projects and what to keep separate, and raw files versus standard tools per item, with versions from the stack reference. Writes docs/observability.md with the decisions, then finds the project's ticketing pipeline and, once the user confirms, files one ticket per unit of work. Use when asked to add or plan logging, tracing, metrics, telemetry, monitoring, LLM tracing, profiling or error tracking, or to set up or connect to an observability stack. Triggers on "set up observability", "add telemetry", "add tracing", "plan observability", "trace the LLM calls", "connect to SigNoz/Langfuse".
+description: Plan observability for a project with the user and file the work as tickets. Audits the code, servers, tests and LLM calls, and discovers shared or pre-existing telemetry services; agrees with the user the level of observability, which add-ons to include (LLM observability, evals, profiling, server metrics, test telemetry, front-end, error tracking, alerting), what to share across projects and what to keep separate, and raw files versus standard tools per item, with versions from the stack reference. Writes docs/observability.md with the decisions, then finds the project's ticketing pipeline and, once the user confirms, files one ticket per unit of work; if the user decides to go ahead, develops the tickets through the project's own dev pipeline, or directly when it has none. Use when asked to add or plan logging, tracing, metrics, telemetry, monitoring, LLM tracing, profiling or error tracking, or to set up or connect to an observability stack. Triggers on "set up observability", "add telemetry", "add tracing", "plan observability", "trace the LLM calls", "connect to SigNoz/Langfuse".
 ---
 
 # scaffold-observability
 
-Plans a project's observability with the user, documents the decisions, and turns the work into
-tickets in the project's own pipeline. It changes no application code: the tickets carry the work.
-The only file it writes in the project is `docs/observability.md`.
+Plans a project's observability with the user, documents the decisions, turns the work into
+tickets in the project's own pipeline, and, if the user decides to, develops those tickets. Until
+the user makes that decision (step 7), the only file it writes in the project is
+`docs/observability.md`.
 
 The stack reference, `~/.claude/skills/stack-decisions/stack-reference.md`, sections O1 to O8 and
 2.16, holds the tools, tradeoffs, defaults, schemas and versions. Read the sections you need
@@ -174,8 +175,48 @@ Take the tickets that apply, adapt each to the audit, split any that are too big
 | T14 | Alerting and dashboards | Error-rate and latency alerts routed to the agreed channel, one service dashboard, SLOs at level 3 (O2.5) | A test alert reaches the channel |
 | T15 | Agent instructions and docs | Add the O6.4 telemetry snippet, trimmed to what was built, to `CLAUDE.md` or `AGENTS.md`; mark items done in `docs/observability.md` | Instructions name only commands that exist and work |
 
-## 7. Report
+## 7. Develop the tickets, if the user decides to
+
+Ask the user whether to develop the tickets now, and which: all, the level-1 set (T1, T2, T3, T5,
+T6, T15), or a chosen list. In the same question, settle how the work lands: the pipeline's own
+way, or, without a pipeline, commits on a branch, a PR, or uncommitted changes for review. Stop
+here if they say no.
+
+**Find the dev pipeline**, the way work normally moves from ticket to merged code:
+
+- **User harness** (`.uh/` and `docs/agents/orchestration.md`): follow it exactly. That means a
+  worktree and branch per feature, `testwriter` then `coder`, a `Paths:` line and a `Ticket: #N`
+  line in every subagent prompt, `scripts/verify`, friction entries, and a PR per ticket. The
+  main session orchestrates and does not edit `src/` or `tests/` itself.
+- **Instructions or project skills:** a workflow in `CLAUDE.md` or `AGENTS.md`, or a ticket
+  command or skill in `.claude/`. Use it as written.
+- **Board and PR conventions:** move each ticket through the board's statuses as work starts and
+  lands (`gh-board`), and link each PR so merging closes its ticket (`gh-pr-linking`). Let CI run
+  on each PR.
+
+Name the pipeline you found, and how you'll drive it, to the user before starting.
+
+**If there is no pipeline,** develop the tickets directly. Branch first if on the default branch,
+implement one ticket at a time, run its acceptance commands and the project's own checks, show
+their output, and land it the way the user chose.
+
+**Either way:**
+
+- Work in dependency order. Run independent tickets in parallel only where the pipeline allows it
+  (separate worktrees, no overlapping paths).
+- A ticket is done when its acceptance commands pass, with output shown. Never mark it done
+  because the code looks right.
+- After each ticket lands, update its row in `docs/observability.md` and its status in the
+  tracker.
+- Stop and ask before T10 (deploying a platform) or T9 (first data sent to a shared service),
+  since both act outside the repo. Also stop and ask when a ticket's scope turns out wrong, when
+  acceptance keeps failing, or when a credential is missing. For a missing credential, add the
+  key to `.env` with an empty value and to `.env.example`, say which key, and stop.
+
+## 8. Report
 
 Give the user: the level and add-ons chosen, what is shared and what is kept separate, the link to
-`docs/observability.md`, and the ticket links in order. Offer to start on the first ticket. Commit
-`docs/observability.md` only if the user asks, on a branch if the repo is on its default branch.
+`docs/observability.md`, the ticket links in order, and, for developed tickets, what landed
+(PRs, branches or commits) and what is still open. Commit `docs/observability.md` only if the
+user asks or the pipeline commits it with the first ticket, on a branch if the repo is on its
+default branch.

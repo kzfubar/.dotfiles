@@ -55,6 +55,11 @@ The user is a non-specialist for most projects and must be able to decide on the
 - `title`: the decision as a short question, in plain words.
 - `revision`: any string you choose; change it whenever the content changes (same revision + other content = 409).
 - `options`: `[{key, label}]`, keys `a`, `b`, ...
+- Optional, and changeable on the same revision without losing the user's draft or answer: `decide_by`
+  (`YYYY-MM-DD`, when the project needs the answer; never act on a default when it passes), `door` (`one_way` if
+  hard to undo, `two_way` if easy; leaving it out ranks like one-way), `blocking: true` with an optional
+  `blocking_note` when the project is waiting on the answer. They set the inbox order the user sees.
+- `model_version: 2` (the reference client adds it): lets the user answer "needs more info".
 - Summary-layer blocks, one per role, in plain language (no internal jargon, no bare ticket ids unless a glossary
   block explains them):
   - `decision`: one sentence stating the decision;
@@ -81,8 +86,11 @@ longer needs the user, `withdraw` it.
 At the start of a session (and when the user says they answered), `fetch-answers <project> --since <cursor>`, keeping
 the returned `cursor` in the project (for example in a small state file). For each answer:
 - `stale: true` (it answers an older revision): do not act on it; the decision changed after the user answered.
-- otherwise record the choice and the user's note in the ticket, act on it as the user decided, then
-  `ack <project> <id> --revision <revision>`. The answer is frozen once acked.
+- `kind: "needs_info"`: the user could not decide as written and says why in `text`. Record the question in the
+  ticket, ack it, then rewrite the request to answer it and submit a new `revision`. Do not act on the decision.
+- otherwise (`kind: "decision"`) record the choice and the user's note in the ticket, act on it as the user
+  decided, then `ack <project> <id> --revision <revision>`. The answer is frozen once acked, unless the user sends
+  a new answer later (it shows up in the next fetch).
 
 ## Connecting a new project
 

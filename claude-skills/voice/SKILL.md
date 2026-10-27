@@ -1,6 +1,6 @@
 ---
 name: voice
-description: Write a short chat message, text, DM or Discord reply in Kevin's own voice by running `twin render` on the points he wants to make, for a friend, co-worker or AI assistant. He supplies the content; the tool only renders style. Not for email (not supported yet) or for long documents.
+description: Write a short chat message, text, DM, Discord reply or email in Kevin's own voice by running `twin render` on the points he wants to make, for a friend, co-worker, AI assistant or email recipient. He supplies the content; the tool only renders style. Not for long documents.
 disable-model-invocation: true
 ---
 
@@ -45,9 +45,38 @@ uv run --project C:/Users/zkevi/projects/twin twin render --audience friend -n 3
 - `--draft FILE` instead of points when Kevin hands over a rough draft to restyle.
 - Each render takes about 10-30 seconds and a cent or two; `-n 3` gives three candidates.
 
-stdout is only the message, one candidate per block. stderr has the seed and the judge's
+stdout is only the message, one candidate per block (emails: separated by `---`). stderr has the seed and the judge's
 verdict. If stderr warns about a missed point or an invention, say so or re-render; don't patch
 the wording by hand, since hand edits undo the style.
+
+### Email
+
+```
+uv run --project C:/Users/zkevi/projects/twin twin render --audience email --register service   --subject -n 2   --points "my order arrived damaged"   --points "i'd like a replacement rather than a refund"   --points "can you send a return label [question]"
+```
+
+- `--register academic|career|colleague|service`: who it's to. If left out it's inferred, and
+  stderr says so; check that it fits.
+- `--to NAME` for a named greeting (otherwise "Hi," / "Hello,"); `--first-contact` when Kevin
+  hasn't written to them before; `--reply-to FILE` with the email he's answering (anonymized
+  before any model call, used only as context); `--subject` for a new email (stdout then starts
+  with `Subject:`).
+- Don't put a greeting, sign-off or pleasantries in the points; the tool adds those. A thanks
+  or apology with real content is a point with its flag.
+- Email flags, on top of the ones above:
+
+  | flag | when |
+  |---|---|
+  | `[thanks]` | thanking them for something specific |
+  | `[apology]` | apologizing for something specific |
+  | `[attachment]` | something is attached |
+  | `[agree]` | agreeing to what they proposed |
+  | `[request]` | asking them to do something |
+  | `[offer]` | offering help or more info (licenses "Let me know ...") |
+  | `[upcoming]` | a future meeting or event (licenses "I look forward ...") |
+  | `[item]` | one line of a list; two or more make a list |
+
+- It writes his current (2023–25) email style, about 2 cents per candidate.
 
 ## 3. Hand it back
 
@@ -61,4 +90,6 @@ the wording by hand, since hand edits undo the style.
 - It needs `D:/chat-archive` (the store `twin.sqlite` and `twin/render-pool/`), `uv`, and the
   `claude` CLI on PATH. If the pool is missing, the error says to run `--build-pool`; that is a
   one-time ~$5 job, so ask Kevin before running it.
-- For email, say it isn't supported yet rather than forcing it through `--audience friend`.
+- Email also needs `D:/chat-archive/identity.json` (his names), the register labels
+  (`twin email registers`) and the email pool (`twin render --audience email --build-pool`,
+  one-time ~$6; ask Kevin first). Don't send email through `--audience friend`.

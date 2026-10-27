@@ -1,6 +1,7 @@
 ---
 name: voice
-description: Write a short message in Kevin's own voice by running `twin render` on the points he wants to make. Use when Kevin asks to write, word, draft or reply to a chat message, text, DM or Discord message in his style, to a friend, co-worker or an AI assistant ("text them that...", "reply saying...", "write this like I would", "say this in my voice"). He supplies the content; the tool only renders style. Not for email (not supported yet) or for long documents.
+description: Write a short chat message, text, DM or Discord reply in Kevin's own voice by running `twin render` on the points he wants to make, for a friend, co-worker or AI assistant. He supplies the content; the tool only renders style. Not for email (not supported yet) or for long documents.
+disable-model-invocation: true
 ---
 
 # Voice

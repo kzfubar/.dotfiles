@@ -1,10 +1,10 @@
 ---
-name: voice
-description: Write a short chat message, text, DM, Discord reply or email in Kevin's own voice by running `twin render` on the points he wants to make, for a friend, co-worker, AI assistant or email recipient. He supplies the content; the tool only renders style. Not for long documents.
+name: kf-prose
+description: Write a short chat message, text, DM, Discord reply, email or a few sentences of prose (Slack post, PR comment, doc paragraph) in Kevin's own voice by running `twin render` on the points he wants to make, for a friend, co-worker, AI assistant or email recipient. He supplies the content; the tool only renders style. Not for long documents.
 disable-model-invocation: true
 ---
 
-# Voice
+# kf-prose
 
 `twin render` (repo `C:/Users/zkevi/projects/twin`) turns a list of points into a message the
 way Kevin writes it: his casing, punctuation and habits at his real rates, worded after real
@@ -78,6 +78,18 @@ uv run --project C:/Users/zkevi/projects/twin twin render --audience email --reg
 
 - It writes his current (2023–25) email style, about 2 cents per candidate.
 
+### Prose
+
+`--audience prose` for a few sentences in a Slack post, PR comment or doc paragraph: capitalized
+and punctuated, with no greeting, sign-off or chat casing. It takes the same points and flags.
+
+```
+uv run --project C:/Users/zkevi/projects/twin twin render --audience prose -n 3   --points "the retry logic looks right"   --points "the timeout should come from config, not a constant"   --points "can we add a test for the empty-response case before merging [question]"
+```
+
+`--engine core` (with `--pool chat,discord,email`) also exists for ai, friend and email, but the
+default engine tested as well or better, so use the default.
+
 ## 3. Hand it back
 
 - Show the candidates as they came out, and let Kevin pick or ask for another round.
@@ -90,6 +102,7 @@ uv run --project C:/Users/zkevi/projects/twin twin render --audience email --reg
 - It needs `D:/chat-archive` (the store `twin.sqlite` and `twin/render-pool/`), `uv`, and the
   `claude` CLI on PATH. If the pool is missing, the error says to run `--build-pool`; that is a
   one-time ~$5 job, so ask Kevin before running it.
+- Prose and `--engine core` need all three pools (`render-pool/ai`, `discord`, `email`).
 - Email also needs `D:/chat-archive/identity.json` (his names), the register labels
   (`twin email registers`) and the email pool (`twin render --audience email --build-pool`,
   one-time ~$6; ask Kevin first). Don't send email through `--audience friend`.

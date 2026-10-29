@@ -3,15 +3,28 @@
 # (Settings > System > For developers) or an elevated shell. In directories filled from a
 # source/* entry, removes links into that source whose target no longer exists, such as a
 # skill that was moved or deleted.
+#
+# Elevated processes, including every SSH session of an admin account, refuse to follow links
+# created by a non-elevated one ("untrusted mount point"). Run this elevated so the links work
+# in both; an elevated run also replaces existing links that elevated processes can't follow.
 $ErrorActionPreference = 'Stop'
 $dotfiles = Join-Path $HOME '.dotfiles'
+$elevated = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+	[Security.Principal.WindowsBuiltInRole]::Administrator)
 
 function Test-CanSymlink {
 	$key = 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\AppModelUnlock'
 	$devMode = (Get-ItemProperty $key -ErrorAction SilentlyContinue).AllowDevelopmentWithoutDevLicense -eq 1
-	$admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
-		[Security.Principal.WindowsBuiltInRole]::Administrator)
-	$devMode -or $admin
+	$devMode -or $elevated
+}
+
+# True when this process can't follow the link. Only an elevated process can tell.
+function Test-Untrusted($item) {
+	try {
+		if ($item.PSIsContainer) { Get-ChildItem -LiteralPath $item.FullName -ErrorAction Stop | Out-Null }
+		else { [IO.File]::OpenRead($item.FullName).Close() }
+		$false
+	} catch { $_.Exception.Message -match 'untrusted mount point' }
 }
 
 function Link($src, $dst) {
@@ -21,7 +34,7 @@ function Link($src, $dst) {
 		Write-Host "skip: $dst exists (not a link)"
 		return
 	}
-	if ($item -and @($item.Target)[0] -eq $src) { return }
+	if ($item -and @($item.Target)[0] -eq $src -and -not ($elevated -and (Test-Untrusted $item))) { return }
 	# Delete() without arguments removes only the link, never the directory it points to.
 	if ($item) { $item.Delete() }
 	if ((Get-Item -LiteralPath $src).PSIsContainer) {
@@ -49,6 +62,9 @@ function Prune($dir, $src) {
 
 if (-not (Test-CanSymlink)) {
 	Write-Error 'File links need Developer Mode: turn it on in Settings > System > For developers, then re-run.'
+}
+if (-not $elevated) {
+	Write-Warning 'Not elevated: new links will not work in elevated or SSH sessions. Re-run from an elevated shell.'
 }
 
 foreach ($line in Get-Content (Join-Path $dotfiles 'links')) {

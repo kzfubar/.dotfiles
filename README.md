@@ -93,6 +93,7 @@ doesn't leave a dangling link behind.
 
 | File | Linked to |
 |---|---|
+| `.zshenv` | `~/.zshenv` (not on Windows): Homebrew on the PATH for every zsh, including `ssh host 'cmd'` |
 | `.zshrc` | `~/.zshrc` (not on Windows) |
 | `shell/common.sh` | Sourced by `.zshrc` and `.bashrc`: shared aliases and functions |
 | `.bashrc`, `.bash_profile` | `~/.bashrc`, `~/.bash_profile` (Windows only, Git Bash) |

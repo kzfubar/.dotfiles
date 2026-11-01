@@ -5,6 +5,7 @@
 .vimrc                   .vimrc
 .gitconfig               .gitconfig
 .gitignore_global        .gitignore_global
+.zshenv                  .zshenv              unix
 .zshrc                   .zshrc               unix
 .bashrc                  .bashrc              windows
 .bash_profile            .bash_profile        windows

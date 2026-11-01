@@ -12,3 +12,6 @@ brew "fswatch"
 brew "go"
 brew "node"
 brew "uv"
+
+# Services
+brew "tailscale"

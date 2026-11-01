@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# macOS bootstrap: Xcode CLT, Homebrew + Brewfile, GPG pinentry, oh-my-zsh,
-# Claude Code, and symlinks. Safe to re-run; re-runs also upgrade outdated
-# Brewfile entries. For Ubuntu, use bootstrap-ubuntu.
+# macOS bootstrap: Xcode CLT, Homebrew + Brewfile, tailscaled, GPG pinentry,
+# oh-my-zsh, Claude Code, and symlinks. Runs as the user; only the steps that
+# need root call sudo. Safe to re-run; re-runs also upgrade outdated Brewfile
+# entries. For Ubuntu, use bootstrap-ubuntu.
 set -euo pipefail
 
 if [ "$(uname -s)" != Darwin ]; then
@@ -33,6 +34,14 @@ fi
 
 step "Brewfile"
 brew bundle install --file="$DOTFILES/Brewfile"
+
+# tailscaled needs root, so it runs as a system daemon rather than a user agent.
+step "tailscaled"
+if pgrep -qx tailscaled; then
+	echo "running"
+else
+	sudo brew services start tailscale
+fi
 
 step "gpg-agent pinentry"
 mkdir -p "$HOME/.gnupg"

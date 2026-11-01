@@ -18,8 +18,10 @@ HTTPS because SSH keys aren't set up yet on a fresh machine. Switch afterwards w
 ```
 
 Installs the Xcode Command Line Tools, Homebrew, everything in `Brewfile`, oh-my-zsh with zsh-z,
-and Claude Code, points gpg-agent at `pinentry-mac`, then runs `link.sh`. Safe to re-run, but re-runs
-also upgrade any outdated Brewfile entries.
+and Claude Code, starts `tailscaled` as a root daemon, points gpg-agent at `pinentry-mac`, then runs
+`link.sh`. Run it as yourself, not with sudo: Homebrew refuses to run as root, and the steps that
+need root call sudo themselves. Safe to re-run, but re-runs also upgrade any outdated Brewfile
+entries.
 
 ## Ubuntu
 
@@ -75,12 +77,13 @@ vim. The bootstrap sets the execution policy to RemoteSigned for the user so the
    which is a symlink into this repo. Then re-run the bootstrap: it clones the private
    `kzfubar/user-harness` repo to `~/projects/user-harness` and installs its `uh` command, a step it
    skips until `gh` is logged in.
-5. **iTerm (macOS).** Enable iTerm's Claude Code integration so `~/.config/iterm2/cc-status`
+5. **Tailscale (macOS).** Run `sudo tailscale up` and sign in at the URL it prints.
+6. **iTerm (macOS).** Enable iTerm's Claude Code integration so `~/.config/iterm2/cc-status`
    exists; the Claude hooks skip it until then.
-6. **gh-board.** Fill in `org` and `projectNumber` in `~/.dotfiles/tools/gh-board/board.config.json`
+7. **gh-board.** Fill in `org` and `projectNumber` in `~/.dotfiles/tools/gh-board/board.config.json`
    (gitignored), or set `BOARD_ORG` / `BOARD_PROJECT`. Needs `gh auth login` with the `project`,
    `repo`, and `read:org` scopes.
-7. Open a new terminal.
+8. Open a new terminal.
 
 ## Layout
 

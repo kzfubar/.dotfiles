@@ -8,24 +8,41 @@ export EDITOR=vim
 [ -f "$HOME/.config/user-harness/telemetry.env" ] && source "$HOME/.config/user-harness/telemetry.env"
 
 # cl: run claude in ~/scratch, or in the given dir. Extra args go to claude.
-# Outside tmux it starts a new tmux session named after the dir, or name-2, name-3, ... when that
-# name is taken. Runs claude directly when already inside tmux, when tmux is not installed, or when
-# CL_NO_TMUX is set.
 cl() {
-  local dir name base n
+  local dir
   if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
     dir="$1"; shift
   else
     dir="$HOME/scratch"
     mkdir -p "$dir"
   fi
-  if [ -n "$TMUX" ] || [ -n "$CL_NO_TMUX" ] || ! command -v tmux >/dev/null 2>&1; then
-    (cd "$dir" && claude "$@")
+  (cd "$dir" && claude "$@")
+}
+
+# tcl: like cl, but in a new tmux session. tcl [-n name] [dir] [claude args]. The session is named
+# after -n or the dir, with -2, -3, ... appended when that name is taken. Inside tmux, or without
+# tmux installed, it runs cl instead.
+tcl() {
+  local dir name n
+  if [ "$1" = -n ] && [ $# -ge 2 ]; then
+    name="$2"; shift 2
+  fi
+  if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
+    dir="$1"; shift
+  else
+    dir="$HOME/scratch"
+    mkdir -p "$dir"
+  fi
+  if [ -z "$name" ] && [ "$1" = -n ] && [ $# -ge 2 ]; then
+    name="$2"; shift 2
+  fi
+  if [ -n "$TMUX" ] || ! command -v tmux >/dev/null 2>&1; then
+    cl "$dir" "$@"
     return
   fi
   dir="$(cd "$dir" && pwd)" || return
-  base="$(basename "$dir" | tr '.:' '__')"
-  name="$base"
+  name="$(printf '%s' "${name:-$(basename "$dir")}" | tr '.:' '__')"
+  local base="$name"
   n=2
   while tmux has-session -t "=$name" 2>/dev/null; do
     name="$base-$n"; n=$((n + 1))

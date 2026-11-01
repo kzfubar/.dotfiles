@@ -139,6 +139,12 @@
     "slidev@slidev-plugins": true
   },
   "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
     "slidev-plugins": {
       "source": {
         "source": "github",

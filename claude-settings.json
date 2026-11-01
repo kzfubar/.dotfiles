@@ -146,6 +146,10 @@
       }
     }
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.dotfiles/claude-hooks/statusline.sh\""
+  },
   "feedbackDrafts": "off",
   "tui": "fullscreen",
   "agentPushNotifEnabled": true,

@@ -146,8 +146,9 @@
       }
     }
   },
+  "feedbackDrafts": "off",
   "tui": "fullscreen",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "feedbackDrafts": "off"
+  "skipWorkflowUsageWarning": true
 }

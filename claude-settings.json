@@ -134,6 +134,10 @@
       }
     ]
   },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/.dotfiles/claude-hooks/statusline.sh\""
+  },
   "enabledPlugins": {
     "pyright-lsp@claude-plugins-official": true,
     "slidev@slidev-plugins": true
@@ -152,13 +156,10 @@
       }
     }
   },
-  "statusLine": {
-    "type": "command",
-    "command": "bash \"$HOME/.dotfiles/claude-hooks/statusline.sh\""
-  },
   "feedbackDrafts": "off",
   "tui": "fullscreen",
+  "skipWorkflowUsageWarning": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "skipWorkflowUsageWarning": true
+  "theme": "dark"
 }

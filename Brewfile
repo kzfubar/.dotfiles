@@ -7,6 +7,7 @@ brew "pinentry-mac"
 brew "jq"
 brew "tree"
 brew "tmux"
+brew "ttyd"
 brew "fswatch"
 
 # Languages

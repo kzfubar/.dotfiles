@@ -110,6 +110,7 @@ doesn't leave a dangling link behind.
 | `tools/gh-board/board` | `~/.local/bin/board` |
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |
 | `tools/gform/gform` | `~/.local/bin/gform` |
+| `tools/tserve/tserve` | `~/.local/bin/tserve`: tmux sessions across the tailnet, with a tailnet-only web picker (ttyd) |
 | `Brewfile` | Used by `bootstrap-macos` |
 
 Because these are links, tools that write to them (`git config --global`, Claude Code's

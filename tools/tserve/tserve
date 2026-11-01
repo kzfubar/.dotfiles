@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# tserve: one place to see and attach to the tmux sessions on every machine in the tailnet.
+#
+#   tserve              same as `tserve status`
+#   tserve list         list tmux sessions on this machine and on every online macOS/Linux peer
+#   tserve pick         interactive picker: choose a session, attach to it, return to the list on detach
+#   tserve start        serve the picker in a browser terminal (ttyd) at https://<this host>.<tailnet>,
+#                       reachable from the tailnet only (tailscale serve, never funnel)
+#   tserve stop         stop ttyd and remove the tailscale serve config
+#   tserve status       whether the web picker is running, its URL, and the session list
+#
+# Peers are reached with `ssh -o BatchMode=yes <host>`, so each one needs SSH that works without a
+# prompt from this machine. A peer that refuses or times out is listed as unreachable.
+set -euo pipefail
+
+PORT=${TSERVE_PORT:-7681}
+STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tserve"
+PIDFILE="$STATE_DIR/ttyd.pid"
+LOGFILE="$STATE_DIR/ttyd.log"
+SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=4)
+FMT='#{session_name}	#{session_windows}	#{?session_attached,attached,-}	#{pane_current_path}'
+
+die() {
+	echo "tserve: $*" >&2
+	exit 1
+}
+
+self_name() {
+	tailscale status --json | jq -r '.Self.DNSName | split(".")[0]'
+}
+
+# Online macOS and Linux peers, by MagicDNS short name.
+peers() {
+	tailscale status --json | jq -r '
+		.Peer // {} | to_entries[] | .value
+		| select(.Online and (.OS == "macOS" or .OS == "linux"))
+		| .DNSName | split(".")[0]'
+}
+
+# Prints one line per session: host<TAB>name<TAB>windows<TAB>attached<TAB>path.
+# Prints host<TAB>! when the host is unreachable; nothing when it has no tmux server.
+sessions_on() {
+	local host=$1 out rc=0
+	if [ "$host" = "$(self_name)" ]; then
+		out=$(tmux ls -F "$FMT" 2>/dev/null) || out=""
+	else
+		out=$(ssh "${SSH_OPTS[@]}" "$host" "tmux ls -F '$FMT' 2>/dev/null || true" 2>/dev/null) || rc=$?
+		if [ "$rc" -ne 0 ]; then
+			printf '%s\t!\n' "$host"
+			return
+		fi
+	fi
+	[ -n "$out" ] && printf '%s\n' "$out" | sed "s/^/$host	/"
+	return 0
+}
+
+# All hosts queried in parallel; output grouped by host, this machine first.
+all_sessions() {
+	local tmp host i=0
+	tmp=$(mktemp -d)
+	for host in "$(self_name)" $(peers); do
+		sessions_on "$host" >"$tmp/$(printf '%03d' $i)" &
+		i=$((i + 1))
+	done
+	wait
+	cat "$tmp"/* 2>/dev/null || true
+	rm -rf "$tmp"
+}
+
+print_table() {
+	local rows=$1 n=0 host name win att path
+	if [ -z "$rows" ]; then
+		echo "  no tmux sessions found"
+		return
+	fi
+	while IFS=$'\t' read -r host name win att path; do
+		if [ "$name" = "!" ]; then
+			printf '      %-14s (unreachable over ssh)\n' "$host"
+			continue
+		fi
+		n=$((n + 1))
+		[ "$att" = "-" ] && att=""
+		printf '  %2d  %-14s %-22s %2sw  %-8s %s\n' "$n" "$host" "$name" "$win" "$att" "${path/#$HOME/~}"
+	done <<<"$rows"
+}
+
+attach() {
+	local host=$1 name=$2
+	if [ "$host" = "$(self_name)" ]; then
+		TMUX='' tmux attach -t "=$name"
+	else
+		ssh -t "${SSH_OPTS[@]}" "$host" "tmux attach -t '=$name'"
+	fi
+}
+
+cmd_list() {
+	print_table "$(all_sessions)"
+}
+
+cmd_pick() {
+	local rows choice line host name
+	while true; do
+		clear
+		echo "tmux sessions on the tailnet ($(date '+%H:%M:%S'))"
+		echo
+		rows=$(all_sessions)
+		print_table "$rows"
+		echo
+		read -r -p "number to attach, enter to refresh, q to quit: " choice || exit 0
+		case "$choice" in
+		q | Q) exit 0 ;;
+		'' | *[!0-9]*) continue ;;
+		esac
+		line=$(printf '%s\n' "$rows" | awk -F'\t' '$2 != "!"' | sed -n "${choice}p")
+		[ -z "$line" ] && continue
+		host=$(cut -f1 <<<"$line")
+		name=$(cut -f2 <<<"$line")
+		attach "$host" "$name" || {
+			echo "attach failed; press enter"
+			read -r _
+		}
+	done
+}
+
+running() {
+	[ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null
+}
+
+url() {
+	tailscale status --json | jq -r '"https://" + (.Self.DNSName | rtrimstr("."))'
+}
+
+loopback_if() {
+	case "$(uname -s)" in
+	Darwin) echo lo0 ;;
+	*) echo lo ;;
+	esac
+}
+
+cmd_start() {
+	command -v ttyd >/dev/null || die "ttyd is not installed (brew install ttyd)"
+	mkdir -p "$STATE_DIR"
+	if running; then
+		echo "ttyd already running (pid $(cat "$PIDFILE"))"
+	else
+		nohup ttyd -i "$(loopback_if)" -p "$PORT" -W -t titleFixed=tserve \
+			"$(command -v tserve || echo "$0")" pick >"$LOGFILE" 2>&1 &
+		echo $! >"$PIDFILE"
+		sleep 1
+		running || die "ttyd did not start; see $LOGFILE"
+		echo "ttyd listening on 127.0.0.1:$PORT (pid $(cat "$PIDFILE"))"
+	fi
+	tailscale serve --bg --https=443 "http://127.0.0.1:$PORT" >/dev/null
+	echo "serving on the tailnet only: $(url)"
+}
+
+cmd_stop() {
+	if running; then
+		kill "$(cat "$PIDFILE")"
+		echo "stopped ttyd"
+	fi
+	rm -f "$PIDFILE"
+	tailscale serve --https=443 off >/dev/null 2>&1 || true
+	echo "tailscale serve on 443 removed"
+}
+
+cmd_status() {
+	if running; then
+		echo "web picker: running (pid $(cat "$PIDFILE")) at $(url)"
+	else
+		echo "web picker: stopped (tserve start)"
+	fi
+	echo
+	cmd_list
+}
+
+case "${1:-status}" in
+list) cmd_list ;;
+pick) cmd_pick ;;
+start) cmd_start ;;
+stop) cmd_stop ;;
+status) cmd_status ;;
+-h | --help | help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//' ;;
+*) die "unknown command: $1 (try tserve help)" ;;
+esac

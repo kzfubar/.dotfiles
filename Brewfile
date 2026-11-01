@@ -6,6 +6,7 @@ brew "gnupg"
 brew "pinentry-mac"
 brew "jq"
 brew "tree"
+brew "tmux"
 brew "fswatch"
 
 # Languages

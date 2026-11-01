@@ -1,8 +1,7 @@
 #!/usr/bin/env bash
 # Ubuntu bootstrap: apt packages, GitHub CLI, Node.js, uv, oh-my-zsh, Claude Code,
-# zsh as login shell, and symlinks. Command-line setup only; the Brewfile's
-# apps and services are macOS-only. Safe to re-run. For macOS, use
-# bootstrap-macos.
+# zsh as login shell, and symlinks. Command-line setup only. Safe to re-run.
+# For macOS, use bootstrap-macos.
 set -euo pipefail
 
 if ! grep -qi '^ID=ubuntu' /etc/os-release 2>/dev/null; then

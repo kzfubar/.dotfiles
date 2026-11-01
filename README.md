@@ -1,6 +1,6 @@
 # dotfiles
 
-Setup for a new machine: shell, git, vim, Claude Code, and (on macOS) apps via Homebrew.
+Setup for a new machine: shell, git, vim, Claude Code, and (on macOS) dev tools via Homebrew.
 
 The repo must be cloned to `~/.dotfiles`; `link.sh`, `link.ps1` and the configs expect that path.
 
@@ -30,7 +30,7 @@ sudo apt-get install -y git curl
 
 Command-line setup only: apt basics (zsh, vim, direnv, jq, gnupg, build tools), GitHub CLI,
 current Node.js (NodeSource), uv, oh-my-zsh with zsh-z, and Claude Code; sets zsh as the login
-shell and runs `link.sh`. The Brewfile's apps and services are macOS-only. Safe to re-run.
+shell and runs `link.sh`. Safe to re-run.
 
 ## Windows
 

@@ -18,7 +18,7 @@ HTTPS because SSH keys aren't set up yet on a fresh machine. Switch afterwards w
 ```
 
 Installs the Xcode Command Line Tools, Homebrew, everything in `Brewfile`, oh-my-zsh with zsh-z,
-and Claude Code, starts `tailscaled` as a root daemon, points gpg-agent at `pinentry-mac`, then runs
+and Claude Code, starts `tailscaled` as a root daemon, points gpg-agent at `pinentry-mac`, and runs
 `link.sh`. Run it as yourself, not with sudo: Homebrew refuses to run as root, and the steps that
 need root call sudo themselves. Safe to re-run, but re-runs also upgrade any outdated Brewfile
 entries.

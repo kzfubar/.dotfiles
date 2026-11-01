@@ -8,9 +8,9 @@ export EDITOR=vim
 [ -f "$HOME/.config/user-harness/telemetry.env" ] && source "$HOME/.config/user-harness/telemetry.env"
 
 # cl: run claude in ~/scratch, or in the given dir. Extra args go to claude.
-# Outside tmux it runs in a tmux session named after the dir: with no extra args it reattaches that
-# session if one exists, with extra args it starts another (name-2, name-3, ...). Runs claude
-# directly when already inside tmux, when tmux is not installed, or when CL_NO_TMUX is set.
+# Outside tmux it starts a new tmux session named after the dir, or name-2, name-3, ... when that
+# name is taken. Runs claude directly when already inside tmux, when tmux is not installed, or when
+# CL_NO_TMUX is set.
 cl() {
   local dir name base n
   if [ $# -gt 0 ] && [ "${1#-}" = "$1" ]; then
@@ -26,13 +26,11 @@ cl() {
   dir="$(cd "$dir" && pwd)" || return
   base="$(basename "$dir" | tr '.:' '__')"
   name="$base"
-  if [ $# -gt 0 ]; then
-    n=2
-    while tmux has-session -t "=$name" 2>/dev/null; do
-      name="$base-$n"; n=$((n + 1))
-    done
-  fi
-  tmux new-session -A -s "$name" -c "$dir" claude "$@"
+  n=2
+  while tmux has-session -t "=$name" 2>/dev/null; do
+    name="$base-$n"; n=$((n + 1))
+  done
+  tmux new-session -s "$name" -c "$dir" claude "$@"
 }
 
 # fixkeys: turn off keyboard modes a crashed program left on, so ctrl keys work again

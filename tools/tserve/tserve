@@ -4,7 +4,7 @@
 #   tserve              same as `tserve status`
 #   tserve list         list tmux sessions on this machine and on every online macOS/Linux peer
 #   tserve pick         interactive picker: choose a session, attach to it, return to the list on detach
-#   tserve start        serve the picker in a browser terminal (ttyd) at https://<this host>.<tailnet>,
+#   tserve start        serve the picker in a browser terminal (ttyd) at https://<this host>.<tailnet>:8443,
 #                       reachable from the tailnet only (tailscale serve, never funnel)
 #   tserve stop         stop ttyd and remove the tailscale serve config
 #   tserve status       whether the web picker is running, its URL, and the session list
@@ -14,6 +14,8 @@
 set -euo pipefail
 
 PORT=${TSERVE_PORT:-7681}
+# 443 is left to cerebro; the terminal keeps its own origin (port) so cerebro pages can never drive it.
+HTTPS_PORT=${TSERVE_HTTPS_PORT:-8443}
 STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tserve"
 PIDFILE="$STATE_DIR/ttyd.pid"
 LOGFILE="$STATE_DIR/ttyd.log"
@@ -127,7 +129,7 @@ running() {
 }
 
 url() {
-	tailscale status --json | jq -r '"https://" + (.Self.DNSName | rtrimstr("."))'
+	tailscale status --json | jq -r --arg p "$HTTPS_PORT" '"https://" + (.Self.DNSName | rtrimstr(".")) + ":" + $p'
 }
 
 loopback_if() {
@@ -143,14 +145,14 @@ cmd_start() {
 	if running; then
 		echo "ttyd already running (pid $(cat "$PIDFILE"))"
 	else
-		nohup ttyd -i "$(loopback_if)" -p "$PORT" -W -t titleFixed=tserve \
+		nohup ttyd -i "$(loopback_if)" -p "$PORT" -W -O -t titleFixed=tserve \
 			"$(command -v tserve || echo "$0")" pick >"$LOGFILE" 2>&1 &
 		echo $! >"$PIDFILE"
 		sleep 1
 		running || die "ttyd did not start; see $LOGFILE"
 		echo "ttyd listening on 127.0.0.1:$PORT (pid $(cat "$PIDFILE"))"
 	fi
-	tailscale serve --bg --https=443 "http://127.0.0.1:$PORT" >/dev/null
+	tailscale serve --bg --https="$HTTPS_PORT" "http://127.0.0.1:$PORT" >/dev/null
 	echo "serving on the tailnet only: $(url)"
 }
 
@@ -160,8 +162,8 @@ cmd_stop() {
 		echo "stopped ttyd"
 	fi
 	rm -f "$PIDFILE"
-	tailscale serve --https=443 off >/dev/null 2>&1 || true
-	echo "tailscale serve on 443 removed"
+	tailscale serve --https="$HTTPS_PORT" off >/dev/null 2>&1 || true
+	echo "tailscale serve on $HTTPS_PORT removed"
 }
 
 cmd_status() {

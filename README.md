@@ -43,9 +43,10 @@ elevated shell. Clone with Git for Windows (`winget install Git.Git`), then in P
 powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
 ```
 
-Installs Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide with winget, and
-Claude Code with its own installer, and tmux for Git Bash from MSYS2 (pinned to builds that match
-Git for Windows' runtime), then runs `link.ps1`: junctions for directories, symbolic links
+Installs Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship, zoxide and tmux (the native
+Windows port, arndawg.tmux-windows) with winget, and Claude Code with its own installer, sets Git
+Bash as the OpenSSH server's default shell (so `tserve` on another machine can reach tmux here),
+then runs `link.ps1`: junctions for directories, symbolic links
 for files. Like `link.sh`, it skips files that already exist, so move an existing `~/.gitconfig`,
 `~/.claude/CLAUDE.md`, `~/.claude/settings.json`, `~/.bashrc` or PowerShell profile aside first.
 Safe to re-run.
@@ -117,6 +118,7 @@ doesn't leave a dangling link behind.
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |
 | `tools/gform/gform` | `~/.local/bin/gform` |
 | `tools/tserve/tserve` | `~/.local/bin/tserve`: tmux sessions across the tailnet, with a tailnet-only web picker (ttyd, port 8443) |
+| `tools/tmux-windows/tmux` | `~/.local/bin/tmux` (Windows): runs the native tmux port with a Windows-path `$SHELL`, also over SSH |
 | `Brewfile` | Used by `bootstrap-macos` |
 
 Because these are links, tools that write to them (`git config --global`, Claude Code's

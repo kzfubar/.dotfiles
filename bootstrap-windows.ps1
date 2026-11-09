@@ -1,6 +1,6 @@
-# Windows bootstrap: Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide
-# via winget, Claude Code, tmux (from MSYS2), Claude plugins, user-harness, a commit signing key, links, and Git
-# Bash as Windows Terminal's default. Safe to re-run. File links need Developer Mode; see
+# Windows bootstrap: Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship, zoxide and
+# tmux (native port) via winget, Claude Code, Claude plugins, user-harness, a commit signing key,
+# links, Git Bash for SSH logins, and Git Bash as Windows Terminal's default. Safe to re-run. File links need Developer Mode; see
 # README.md. For macOS or Ubuntu, use bootstrap-macos or bootstrap-ubuntu.
 #
 #   powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
@@ -31,6 +31,8 @@ Update-Path
 $packages = [ordered]@{
 	git = 'Git.Git'; gh = 'GitHub.cli'; node = 'OpenJS.NodeJS'; uv = 'astral-sh.uv'; jq = 'jqlang.jq'
 	mise = 'jdx.mise'; pwsh = 'Microsoft.PowerShell'; starship = 'Starship.Starship'; zoxide = 'ajeetdsouza.zoxide'
+	# The native Windows port; Git Bash runs it through tools/tmux-windows/tmux.
+	tmux = 'arndawg.tmux-windows'
 }
 foreach ($command in $packages.Keys) {
 	$present = Get-Command $command -ErrorAction SilentlyContinue
@@ -53,28 +55,10 @@ if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
 	Update-Path
 }
 
-# tmux for Git Bash, from MSYS2's package repo: winget has no tmux. The builds must match Git for
-# Windows' MSYS runtime (3.5), whose msys-2.0.dll they load from PATH; newer tmux builds need a
-# newer runtime and exit silently.
-Step 'tmux'
-$bin = Join-Path $HOME '.local\bin'
-if (Test-Path (Join-Path $bin 'tmux.exe')) {
-	Write-Host 'already installed'
-} else {
-	$tmp = Join-Path $env:TEMP 'tmux-msys2'
-	New-Item -ItemType Directory -Force $tmp, $bin | Out-Null
-	foreach ($pkg in 'tmux-3.5.a-2-x86_64.pkg.tar.zst', 'libevent-2.1.13-1-x86_64.pkg.tar.zst') {
-		Invoke-WebRequest "https://repo.msys2.org/msys/x86_64/$pkg" -OutFile (Join-Path $tmp $pkg)
-		Invoke-Checked "$env:SystemRoot\System32\tar.exe" -xf (Join-Path $tmp $pkg) -C $tmp
-	}
-	Copy-Item (Join-Path $tmp 'usr\bin\tmux.exe'), (Join-Path $tmp 'usr\bin\msys-event_core-2-1-7.dll') $bin
-	Remove-Item -Recurse -Force $tmp
-}
-
 # SSH logins land in Git Bash, so other machines (tserve on the tailnet) can run tmux here. The
 # key is machine-wide, so setting it asks for elevation.
 Step 'OpenSSH default shell'
-$bash = 'C:\Program Files\Git\bin\bash.exe'
+$bash = 'C:\Program Files\Git\usr\bin\bash.exe'
 if ((Get-ItemProperty HKLM:\SOFTWARE\OpenSSH -ErrorAction SilentlyContinue).DefaultShell -eq $bash) {
 	Write-Host "already $bash"
 } elseif (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {

@@ -47,7 +47,16 @@ tcl() {
   while tmux has-session -t "=$name" 2>/dev/null; do
     name="$base-$n"; n=$((n + 1))
   done
-  tmux new-session -s "$name" -c "$dir" claude "$@"
+  case "$OSTYPE" in
+  msys* | cygwin*)
+    # The native Windows tmux fails to spawn with -c and runs a session command as `$SHELL /c cmd`,
+    # which bash can't parse, so start a plain shell in the dir and type the command into it.
+    (cd "$dir" && tmux new-session -d -s "$name") || return
+    tmux send-keys -t "=$name:" "claude$(printf ' %q' "$@")" Enter
+    tmux attach -t "=$name"
+    ;;
+  *) tmux new-session -s "$name" -c "$dir" claude "$@" ;;
+  esac
 }
 
 # fixkeys: turn off keyboard modes a crashed program left on, so ctrl keys work again

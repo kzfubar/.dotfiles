@@ -91,9 +91,18 @@ attach() {
 	local host=$1 name=$2
 	if [ "$host" = "$(self_name)" ]; then
 		TMUX='' tmux attach -t "=$name"
+	elif is_windows "$host"; then
+		# Win32-OpenSSH appends a pty command to `bash -c` unquoted, so bash would run only its first
+		# word (PowerShell/Win32-OpenSSH#2478); double quotes keep it one argument.
+		ssh -t "${SSH_OPTS[@]}" "$host" "\"tmux attach -t =$name\""
 	else
 		ssh -t "${SSH_OPTS[@]}" "$host" "tmux attach -t '=$name'"
 	fi
+}
+
+is_windows() {
+	tailscale status --json | jq -e --arg h "$1" \
+		'[.Peer // {} | to_entries[] | .value | select((.DNSName | split(".")[0]) == $h) | .OS] == ["windows"]' >/dev/null
 }
 
 cmd_list() {

@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# tmux on Windows: the native port from winget (arndawg.tmux-windows). Calls the package's exe
+# directly, since winget's link in WinGet\Links is refused in SSH sessions. The port starts new
+# windows from $SHELL, which must be a Windows path.
+exe="$HOME/AppData/Local/Microsoft/WinGet/Packages/arndawg.tmux-windows_Microsoft.Winget.Source_8wekyb3d8bbwe/tmux.exe"
+[ -x "$exe" ] || { echo "tmux: $exe not found (winget install arndawg.tmux-windows)" >&2; exit 127; }
+SHELL='C:\Program Files\Git\bin\bash.exe' exec "$exe" "$@"

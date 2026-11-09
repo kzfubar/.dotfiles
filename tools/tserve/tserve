@@ -2,7 +2,7 @@
 # tserve: one place to see and attach to the tmux sessions on every machine in the tailnet.
 #
 #   tserve              same as `tserve status`
-#   tserve list         list tmux sessions on this machine and on every online macOS/Linux peer
+#   tserve list         list tmux sessions on this machine and on every online macOS/Linux/Windows peer
 #   tserve pick         interactive picker: choose a session, attach to it, return to the list on detach
 #   tserve start        serve the picker in a browser terminal (ttyd) at https://<this host>.<tailnet>:8443,
 #                       reachable from the tailnet only (tailscale serve, never funnel)
@@ -31,11 +31,12 @@ self_name() {
 	tailscale status --json | jq -r '.Self.DNSName | split(".")[0]'
 }
 
-# Online macOS and Linux peers, by MagicDNS short name.
+# Online macOS, Linux and Windows peers, by MagicDNS short name. A Windows peer's OpenSSH server
+# must use Git Bash as its default shell (bootstrap-windows.ps1 sets it).
 peers() {
 	tailscale status --json | jq -r '
 		.Peer // {} | to_entries[] | .value
-		| select(.Online and (.OS == "macOS" or .OS == "linux"))
+		| select(.Online and (.OS == "macOS" or .OS == "linux" or .OS == "windows"))
 		| .DNSName | split(".")[0]'
 }
 

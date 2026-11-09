@@ -84,7 +84,12 @@ vim. The bootstrap sets the execution policy to RemoteSigned for the user so the
 7. **gh-board.** Fill in `org` and `projectNumber` in `~/.dotfiles/tools/gh-board/board.config.json`
    (gitignored), or set `BOARD_ORG` / `BOARD_PROJECT`. Needs `gh auth login` with the `project`,
    `repo`, and `read:org` scopes.
-8. Open a new terminal.
+8. **tserve (Windows).** For the machine running `tserve` to reach this one's tmux, append its
+   public key to `C:\ProgramData\ssh\administrators_authorized_keys` (for an admin account; else
+   `~/.ssh/authorized_keys`) in an elevated PowerShell, then limit the file to Administrators and
+   SYSTEM: `icacls <file> /inheritance:r /grant Administrators:F /grant SYSTEM:F`. On that machine,
+   add `Host <this machine>` with `User <your Windows user>` to `~/.ssh/config`.
+9. Open a new terminal.
 
 ## Layout
 

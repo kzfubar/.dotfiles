@@ -71,6 +71,20 @@ if (Test-Path (Join-Path $bin 'tmux.exe')) {
 	Remove-Item -Recurse -Force $tmp
 }
 
+# SSH logins land in Git Bash, so other machines (tserve on the tailnet) can run tmux here. The
+# key is machine-wide, so setting it asks for elevation.
+Step 'OpenSSH default shell'
+$bash = 'C:\Program Files\Git\bin\bash.exe'
+if ((Get-ItemProperty HKLM:\SOFTWARE\OpenSSH -ErrorAction SilentlyContinue).DefaultShell -eq $bash) {
+	Write-Host "already $bash"
+} elseif (-not (Get-Service sshd -ErrorAction SilentlyContinue)) {
+	Write-Host 'skipped: OpenSSH Server is not installed'
+} else {
+	Start-Process powershell -Verb RunAs -Wait -ArgumentList '-NoProfile', '-Command',
+		"New-ItemProperty -Path HKLM:\SOFTWARE\OpenSSH -Name DefaultShell -Value '$bash' -PropertyType String -Force"
+	Write-Host "set to $bash"
+}
+
 # Installs the marketplaces and plugins declared in claude-settings.json.
 Step 'Claude plugins'
 $settings = Get-Content -Raw (Join-Path $dotfiles 'claude-settings.json') | ConvertFrom-Json

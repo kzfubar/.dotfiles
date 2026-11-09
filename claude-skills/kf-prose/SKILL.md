@@ -6,14 +6,23 @@ disable-model-invocation: true
 
 # kf-prose
 
-`twin render` (repo `C:/Users/zkevi/projects/twin`) turns a list of points into a message the
-way Kevin writes it: his casing, punctuation and habits at his real rates, worded after real
+`twin render` turns a list of points into a message the way Kevin writes it: his casing, punctuation and habits at his real rates, worded after real
 (points -> message) pairs from his history. It never decides what to say. Every point must come
 from Kevin, and the tool checks that the output keeps each point and adds nothing.
 
 The flow is: points (settled in chat for `build`), render 3 candidates, Kevin picks one, then
 he edits it or keeps it. Picks and edits are recorded as feedback, which the renderer learns
 from.
+
+twin and its corpus live on the mini (`ssh mini`), the one canonical copy for every machine, so
+picks and edits from anywhere train the same renderer. It runs there as the `aeris-claude`
+user through `/opt/aeris/libexec/aeris-twin`, which takes the same arguments as `twin`. The
+repo at `C:/Users/zkevi/projects/twin` is for developing twin; never render from it or from
+`D:/chat-archive`, which are no longer updated.
+
+Points go to the mini on stdin, one per line, so quotes and apostrophes survive SSH. Keep other
+option values inside the single-quoted remote command simple (no apostrophes); send anything
+else, such as a file, with the file pattern below.
 
 ## 0. `build`: settle the content first
 
@@ -52,10 +61,10 @@ Then render (section 2) with the settled points.
 ## 2. Render
 
 ```
-uv run --project C:/Users/zkevi/projects/twin twin render --audience chat -n 3 \
-  --points "when should we meet at the station" \
-  --points "i can get there any time after 2" \
-  --points "when does your train arrive [question]"
+printf '%s\n' "when should we meet at the station" \
+  "i can get there any time after 2" \
+  "when does your train arrive [question]" \
+  | ssh mini 'sudo -u aeris-claude /opt/aeris/libexec/aeris-twin render --audience chat -n 3 --file /dev/stdin'
 ```
 
 Audiences:
@@ -70,7 +79,8 @@ Audiences:
 (`ai`, `friend` and `prose` are old names for `work`, `chat` and `core`.)
 
 - `--intent ask|inform|react|request` for chat if it's obvious; otherwise it's inferred.
-- `--draft FILE` instead of points when Kevin hands over a rough draft to restyle.
+- `--draft FILE` instead of points when Kevin hands over a rough draft to restyle (send the
+  file first; see "Files" below).
 - Each render takes about 10-30 seconds and a cent or two per candidate. Always use `-n 3`.
 
 stdout is only the message, one candidate per block (emails: separated by `---`). stderr has
@@ -80,11 +90,10 @@ stderr warns about a missed point or an invention, say so next to that candidate
 ### Email
 
 ```
-uv run --project C:/Users/zkevi/projects/twin twin render --audience email --register service \
-  --subject -n 3 \
-  --points "my order arrived damaged" \
-  --points "i'd like a replacement rather than a refund" \
-  --points "can you send a return label [question]"
+printf '%s\n' "my order arrived damaged" \
+  "i'd like a replacement rather than a refund" \
+  "can you send a return label [question]" \
+  | ssh mini 'sudo -u aeris-claude /opt/aeris/libexec/aeris-twin render --audience email --register service --subject -n 3 --file /dev/stdin'
 ```
 
 - `--register academic|career|colleague|service`: who it's to. If left out it's inferred, and
@@ -120,13 +129,14 @@ default engine tested as well or better, so use the default.
 2. Ask which one with AskUserQuestion: options `1`, `2`, `3`, `none`. Record it right away:
 
    ```
-   uv run --project C:/Users/zkevi/projects/twin twin feedback <session> --pick 2
+   ssh mini 'sudo -u aeris-claude /opt/aeris/libexec/aeris-twin feedback <session> --pick 2'
    ```
 
    For `none`, record `--pick none` and ask whether to re-render or change the points.
 3. Kevin's next message is the follow-up, not another decision to ask for:
-   - If he pastes an edited version, write it to a file in the scratchpad and record it with
-     `twin feedback <session> --final-file <file>`. Record exactly what he wrote.
+   - If he pastes an edited version, write it to a file in the scratchpad, send it to the mini
+     (see "Files" below) and record it with `twin feedback <session> --final-file <path on the
+     mini>`. Record exactly what he wrote.
    - If he says the pick is fine as is, record `twin feedback <session> --as-is`.
    - If he moves on without either, record nothing more. A missing final is fine.
 4. Never send, post or schedule a message yourself.
@@ -135,13 +145,26 @@ default engine tested as well or better, so use the default.
 past messages; don't go looking for them in the pool files either. `twin feedback --stats`
 summarizes the feedback so far.
 
+## Files
+
+`--draft`, `--reply-to` and `--final-file` take a path on the mini. Copy the file into
+`aeris-claude`'s private folder (other users on the mini can't read it), use that path, and
+delete it afterwards:
+
+```
+ssh mini 'sudo -u aeris-claude sh -c "umask 077; mkdir -p /var/db/aeris-claude/tmp; cat > /var/db/aeris-claude/tmp/reply.txt"' < reply.txt
+ssh mini 'sudo -u aeris-claude /opt/aeris/libexec/aeris-twin render --audience email --reply-to /var/db/aeris-claude/tmp/reply.txt -n 3 --file /dev/stdin' < points.txt
+ssh mini 'sudo -u aeris-claude rm -f /var/db/aeris-claude/tmp/reply.txt'
+```
+
 ## If it fails
 
-- It needs `D:/chat-archive` (the store `twin.sqlite` and `twin/render-pool/`), `uv`, and the
-  `claude` CLI on PATH, so it runs only where Claude Code runs on Kevin's machine. If a pool is
-  missing, the error says to run `--build-pool`; that is a one-time ~$5 job, so ask Kevin
-  before running it.
+- It needs the mini reachable as `ssh mini` (Tailscale). On the mini, the corpus is in
+  `/var/db/aeris-claude/twin-data` and twin calls Claude on Kevin's subscription through a
+  token; `{"status":"no-token"}` means that token is missing, so tell Kevin.
+- If a pool is missing, the error says to run `--build-pool`; that is a one-time ~$5 job, so
+  ask Kevin before running it.
 - `core` and `--engine core` need all three pools (`render-pool/ai`, `discord`, `email`).
-- Email also needs `D:/chat-archive/identity.json` (his names), the register labels
-  (`twin email registers`) and the email pool (`twin render --audience email --build-pool`,
-  one-time ~$6; ask Kevin first). Don't send email through `--audience chat`.
+- Email also needs `identity.json` (his names), the register labels (`twin email registers`)
+  and the email pool (`twin render --audience email --build-pool`, one-time ~$6; ask Kevin
+  first). Don't send email through `--audience chat`.

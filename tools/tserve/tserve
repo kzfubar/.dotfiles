@@ -47,7 +47,7 @@ sessions_on() {
 	if [ "$host" = "$(self_name)" ]; then
 		out=$(tmux ls -F "$FMT" 2>/dev/null) || out=""
 	else
-		out=$(ssh "${SSH_OPTS[@]}" "$host" "tmux ls -F '$FMT' 2>/dev/null || true" 2>/dev/null) || rc=$?
+		out=$(ssh "${SSH_OPTS[@]}" "$host" "$(remote_tmux "$host") ls -F '$FMT' 2>/dev/null || true" 2>/dev/null) || rc=$?
 		if [ "$rc" -ne 0 ]; then
 			printf '%s\t!\n' "$host"
 			return
@@ -94,9 +94,20 @@ attach() {
 	elif is_windows "$host"; then
 		# Win32-OpenSSH appends a pty command to `bash -c` unquoted, so bash would run only its first
 		# word (PowerShell/Win32-OpenSSH#2478); double quotes keep it one argument.
-		ssh -t "${SSH_OPTS[@]}" "$host" "\"tmux attach -t =$name\""
+		ssh -t "${SSH_OPTS[@]}" "$host" "\"$(remote_tmux "$host") attach -t =$name\""
 	else
 		ssh -t "${SSH_OPTS[@]}" "$host" "tmux attach -t '=$name'"
+	fi
+}
+
+# The tmux command to run on a peer. A Windows peer's tmux is the tools/tmux-windows wrapper, a
+# symlinked script: SSH sessions there can't execute symlinked scripts, and System32's WSL bash comes
+# before Git's on PATH, so it runs through Git's bash by full path.
+remote_tmux() {
+	if is_windows "$1"; then
+		echo '/usr/bin/bash ~/.local/bin/tmux'
+	else
+		echo tmux
 	fi
 }
 

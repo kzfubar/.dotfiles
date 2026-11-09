@@ -29,6 +29,13 @@ Personal defaults across all projects. A project's own CLAUDE.md overrides these
   output.
 - If something can't be verified, say so explicitly rather than implying it was checked.
 
+## When the first attempt fails
+
+- If the first approach fails in a way you didn't predict, research prior art before trying a
+  second one: who hit the same error, who built the same thing, what packages, ports or documented
+  workarounds exist. For more than a couple of searches, hand it to a research agent.
+- Report what you found, including anything that contradicts what you told me earlier.
+
 ## Python tooling
 
 - Use `uv` for everything: `uv run`, `uv add`, `uv add --dev`, `uv sync`. Never `pip install`,

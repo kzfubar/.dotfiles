@@ -20,7 +20,9 @@ STATE_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/tserve"
 PIDFILE="$STATE_DIR/ttyd.pid"
 LOGFILE="$STATE_DIR/ttyd.log"
 SSH_OPTS=(-o BatchMode=yes -o ConnectTimeout=4)
-FMT='#{session_name}	#{session_windows}	#{?session_attached,attached,-}	#{pane_current_path}'
+# Fields are separated by | because tmux 3.8 prints a tab in -F output as _; sessions_on turns the
+# first three into tabs, so a | in the path survives.
+FMT='#{session_name}|#{session_windows}|#{?session_attached,attached,-}|#{pane_current_path}'
 
 die() {
 	echo "tserve: $*" >&2
@@ -53,7 +55,7 @@ sessions_on() {
 			return
 		fi
 	fi
-	[ -n "$out" ] && printf '%s\n' "$out" | sed "s/^/$host	/"
+	[ -n "$out" ] && printf '%s\n' "$out" | sed "s/|/	/;s/|/	/;s/|/	/;s/^/$host	/"
 	return 0
 }
 

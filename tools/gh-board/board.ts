@@ -3,8 +3,8 @@
  * board — a CLI for reading and writing a GitHub Projects v2 board and its issues.
  *
  * Tickets on the board ARE GitHub issues. "Editing a ticket" edits the issue;
- * "adding a comment" comments on the issue; board-specific fields (Status, Class,
- * Lab Priority, ...) are set on the project item.
+ * "adding a comment" comments on the issue; board fields (Status and whatever else
+ * the board defines) are set on the project item.
  *
  * Auth + transport is entirely delegated to the `gh` CLI (must be installed and
  * authenticated with `project`, `repo`, and `read:org` scopes). No tokens live here.
@@ -408,12 +408,14 @@ function cmdList(cfg: Config, args: Args): void {
     console.log("(no matching items)");
     return;
   }
+  // Only boards that define a Class field get a Class column.
+  const hasClass = items.some((it) => it.class);
   for (const it of items) {
     const c = it.content;
     const ref = c ? `${c.repository}#${c.number}` : "(draft)";
     const status = it.status ?? "—";
-    const cls = it.class ?? "—";
-    console.log(`${status.padEnd(16)} ${cls.padEnd(12)} ${ref}`);
+    const cls = hasClass ? `${(it.class ?? "—").padEnd(12)} ` : "";
+    console.log(`${status.padEnd(16)} ${cls}${ref}`);
     console.log(`   ${it.title}`);
   }
   console.log(`\n${items.length} item(s)`);
@@ -451,7 +453,7 @@ function cmdView(cfg: Config, args: Args): void {
   );
   if (item)
     console.log(
-      `board:  Status=${item.status ?? "—"}  Class=${item.class ?? "—"}`,
+      `board:  Status=${item.status ?? "—"}${item.class ? `  Class=${item.class}` : ""}`,
     );
   else console.log("board:  (not on the project board)");
   console.log("\n--- body ---\n" + (data.body || "(empty)"));
@@ -594,44 +596,51 @@ function multi(flags: Args["flags"], key: string): string[] {
 // Main
 // ---------------------------------------------------------------------------
 
-const HELP = `board — manage the DevBoard (GitHub Projects v2) and its issue tickets
+const HELP = `board — manage a GitHub Projects v2 board and its issue tickets
+
+The board is chosen by BOARD_ORG and BOARD_PROJECT (usually set in a repo's
+.claude/settings.json). Every board has its own fields and options; run
+"board fields" to see them.
 
 USAGE
   board <command> [args] [flags]
 
 COMMANDS
   list                      List board items
-    --status S  --class C  --repo R  --assignee A  --json
+    --status S  --repo R  --assignee A  --class C  --json
   view <ref>                Show a ticket: issue body, board fields, comments  [--json]
   new --repo R --title T    Create an issue + add to board
     --body TEXT|-  --body-file F  --assignee a,b  --label l,m  --milestone M
-    --status S  --class C  --priority P   (board fields, fuzzy-matched)
+    --status S             Board Status (fuzzy-matched)
+    --class C  --priority P   For boards with Class / "Lab Priority" fields
   edit <ref>                Edit issue fields
     --title T  --body TEXT|-  --body-file F
     --add-label l,m  --remove-label l  --add-assignee a  --remove-assignee a  --milestone M
   comment <ref>             Add a comment   --body TEXT|-  --body-file F
-  set <ref> <field> <val>   Set a board field (Status / Class / Lab Priority / ...)
+  set <ref> <field> <val>   Set any board field by name (options fuzzy-matched)
   status <ref> <val>        Shortcut for: set <ref> Status <val>
-  class  <ref> <val>        Shortcut for: set <ref> Class <val>
-  priority <ref> <val>      Shortcut for: set <ref> "Lab Priority" <val>
+  class  <ref> <val>        Shortcut for: set <ref> Class <val>  (boards with a Class field)
+  priority <ref> <val>      Shortcut for: set <ref> "Lab Priority" <val>  (boards with that field)
   add <ref>                 Add an existing issue to the board
   close <ref> [--reason completed|not_planned]
   reopen <ref>
   fields                    List board fields, their options, and what each option means
 
 REFERENCES (<ref>)
-  Full issue URL, or owner/repo#N, or repo#N (org assumed from board.config.json)
+  Full issue URL, or owner/repo#N, or repo#N (owner taken from BOARD_ORG)
 
 ENVIRONMENT
   BOARD_ORG      Board owner, an organization or a user (default: board.config.json "org")
   BOARD_PROJECT  Project number under that owner (default: board.config.json "projectNumber")
 
 EXAMPLES
-  board list --status development
-  board new --repo controllers --title "Fix actuator" --class action --status development
-  board comment controllers#1 --body "Tested, works on rig 2."
-  board status controllers#1 done
-  board edit controllers#1 --add-label bug --add-assignee kzfubar`;
+  board fields
+  board list --status "in progress"
+  board new --repo app --title "Fix login redirect" --status todo
+  board comment app#12 --body "Reproduced on the staging build."
+  board status app#12 done
+  board set app#12 Iteration "Sprint 4"
+  board edit app#12 --add-label bug --add-assignee kzfubar`;
 
 function main(): void {
   const argv = process.argv.slice(2);

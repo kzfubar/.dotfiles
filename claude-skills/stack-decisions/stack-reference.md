@@ -303,8 +303,8 @@ Table convention: **Pros / Cons** are judgments relative to the default stack; *
 | Tool | What it is | Pros | Cons | Notes |
 |---|---|---|---|---|
 | **FastAPI `app.openapi()`** | Spec export | OpenAPI 3.1 straight from pydantic models; no server needed | Spec quality depends on route annotations | Export via a script |
-| **openapi-typescript** | Types-only generator | Zero runtime; minimal diff noise | No client or hooks on its own | MIT; most popular types-only option |
-| **openapi-fetch / openapi-react-query** | Typed client and hooks over those types | Small; no generated runtime code | Less convenience than generated hooks | Same maintainers |
+| **openapi-typescript** | Types-only generator | Zero runtime; minimal diff noise | No client or hooks on its own; requires `@redocly/openapi-core` 1.x | MIT; most popular types-only option. 7.13.0 (Feb 2026) still latest in Nov 2026: the 7.14 release PR (#2616) and the redocly 2 upgrade (#2707) wait on the maintainer; 8.0 is being planned (roadmap discussion #2559) |
+| **openapi-fetch / openapi-react-query** | Typed client and hooks over those types | Small; no generated runtime code | Less convenience than generated hooks; no future updates | Same maintainers; in maintenance mode since the 2026 roadmap (Dec 2025, discussion #2559) |
 | **Orval** | Batteries-included generator | Clients, TanStack Query hooks, MSW mocks | Large generated surface | |
 | **Hey API (`@hey-api/openapi-ts`)** | Plugin-based generator | SDKs, TanStack Query plugin, zod/valibot schemas | Large generated surface; config surface | Successor to openapi-typescript-codegen |
 | **Kubb** | Plugin meta-framework for codegen | Maximum control over outputs | Most setup | |
@@ -1510,7 +1510,7 @@ GROUP BY file ORDER BY failures DESC LIMIT 20;
 | FastAPI | MIT | 0.x; pin minor |
 | pydantic | MIT | 2.13 |
 | uvicorn | BSD-3 | Stable |
-| openapi-typescript / openapi-fetch | MIT | Stable |
+| openapi-typescript / openapi-fetch | MIT | openapi-typescript 7.13.0, releases stalled since Feb 2026; openapi-fetch 0.17 in maintenance mode |
 | Orval, Hey API, Kubb | MIT | Active |
 | oasdiff | Apache 2.0 | Active |
 | Schemathesis | MIT | Active |
@@ -1622,6 +1622,8 @@ Licenses marked * were not re-checked in this pass; confirm in each project's re
 
 ## 7. Sources (web stack)
 
+- [openapi-typescript 2026 roadmap (discussion #2559)](https://github.com/openapi-ts/openapi-typescript/discussions/2559)
+- [openapi-typescript redocly v2 upgrade PR #2707](https://github.com/openapi-ts/openapi-typescript/pull/2707)
 - [Vite 8 announcement](https://vite.dev/blog/announcing-vite8)
 - [Rolldown and Vite 8 developer guide](https://noqta.tn/en/blog/vite-8-rolldown-rust-bundler-developer-guide-2026)
 - [Announcing Rolldown 1.0](https://peerlist.io/saxenashikhil/articles/announcing-rolldown-10)
@@ -2479,6 +2481,7 @@ extension reads the archive directly but is early-stage (100 MB per file cap, br
 
 | Date | Change |
 |---|---|
+| 2026-11-09 | 2.10: openapi-typescript releases stalled since 7.13.0 (Feb 2026), still on redocly 1.x; openapi-fetch in maintenance mode. Pick unchanged. |
 | 2026-10-24 | O6.9 added: canonical OTLP JSON Lines archive (gzip, Hive layout by project, service, signal and record date) kept at every tier, in-process writer at the starter tier, gateway writer plus seal step above it, and the tier promotion procedure; O6.2 rotation limited to the flat view; O3.1, O4.2, O4.7, O5.1, O6.7 and 2.16 point at it. |
 | 2026-10-24 | O6.2/O6.7: version provenance. Full SHA, dirty definition and diff; provider, request and response model, response ID and prompt version on LLM lines; export mapping to `service.version`, `deployment.environment.name`, `vcs.*`, Langfuse and Sentry release; eval runs record dataset, scorer and model versions; GenAI conventions moved repository. |
 | 2026-10-23 | pnpm 12 (Aug 2026) and Vitest 5 (Sep 2026) replace pnpm 11 and Vitest 4 as current majors; picks unchanged. |

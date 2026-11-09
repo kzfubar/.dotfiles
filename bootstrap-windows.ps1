@@ -1,5 +1,5 @@
 # Windows bootstrap: Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide
-# via winget, Claude Code, Claude plugins, user-harness, a commit signing key, links, and Git
+# via winget, Claude Code, tmux (from MSYS2), Claude plugins, user-harness, a commit signing key, links, and Git
 # Bash as Windows Terminal's default. Safe to re-run. File links need Developer Mode; see
 # README.md. For macOS or Ubuntu, use bootstrap-macos or bootstrap-ubuntu.
 #
@@ -51,6 +51,24 @@ if (Test-Path (Join-Path $HOME '.local\bin\claude.exe')) {
 } else {
 	Invoke-RestMethod https://claude.ai/install.ps1 | Invoke-Expression
 	Update-Path
+}
+
+# tmux for Git Bash, from MSYS2's package repo: winget has no tmux. The builds must match Git for
+# Windows' MSYS runtime (3.5), whose msys-2.0.dll they load from PATH; newer tmux builds need a
+# newer runtime and exit silently.
+Step 'tmux'
+$bin = Join-Path $HOME '.local\bin'
+if (Test-Path (Join-Path $bin 'tmux.exe')) {
+	Write-Host 'already installed'
+} else {
+	$tmp = Join-Path $env:TEMP 'tmux-msys2'
+	New-Item -ItemType Directory -Force $tmp, $bin | Out-Null
+	foreach ($pkg in 'tmux-3.5.a-2-x86_64.pkg.tar.zst', 'libevent-2.1.13-1-x86_64.pkg.tar.zst') {
+		Invoke-WebRequest "https://repo.msys2.org/msys/x86_64/$pkg" -OutFile (Join-Path $tmp $pkg)
+		Invoke-Checked "$env:SystemRoot\System32\tar.exe" -xf (Join-Path $tmp $pkg) -C $tmp
+	}
+	Copy-Item (Join-Path $tmp 'usr\bin\tmux.exe'), (Join-Path $tmp 'usr\bin\msys-event_core-2-1-7.dll') $bin
+	Remove-Item -Recurse -Force $tmp
 }
 
 # Installs the marketplaces and plugins declared in claude-settings.json.

@@ -44,7 +44,8 @@ powershell -ExecutionPolicy Bypass -File ~\.dotfiles\bootstrap-windows.ps1
 ```
 
 Installs Git, GitHub CLI, Node.js, uv, jq, mise, PowerShell 7, Starship and zoxide with winget, and
-Claude Code with its own installer, then runs `link.ps1`: junctions for directories, symbolic links
+Claude Code with its own installer, and tmux for Git Bash from MSYS2 (pinned to builds that match
+Git for Windows' runtime), then runs `link.ps1`: junctions for directories, symbolic links
 for files. Like `link.sh`, it skips files that already exist, so move an existing `~/.gitconfig`,
 `~/.claude/CLAUDE.md`, `~/.claude/settings.json`, `~/.bashrc` or PowerShell profile aside first.
 Safe to re-run.

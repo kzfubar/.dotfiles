@@ -1,6 +1,6 @@
 ---
 name: gh-board
-description: Read and write tickets on a GitHub Projects v2 board via the `board` CLI, where a ticket IS a GitHub issue plus its project item. Use when asked to write/edit/comment on a ticket, move a ticket's Status or set another board field, list what's on the board, or check what someone is working on. Each board has its own fields and options; `board fields` lists them with what each option means. Triggers on "ticket", "the board", "DevBoard", "project board", "move to <status>", "what's on the board", "file a ticket", "assign a ticket".
+description: Read and write tickets on any GitHub Projects v2 board via the `board` CLI, where a ticket IS a GitHub issue plus its project item; also find which boards exist and create a new board for a repo. Use when asked to write/edit/comment on a ticket, move a ticket's Status or set another board field, list what's on a board, check what someone is working on, or set up a board for a project. Each board has its own fields and options; `board fields` lists them with what each option means. Triggers on "ticket", "the board", "project board", "move to <status>", "what's on the board", "file a ticket", "assign a ticket", "new board", "set up a board".
 ---
 
 # gh-board
@@ -97,6 +97,29 @@ variables:
 ```bash
 BOARD_ORG=some-org BOARD_PROJECT=7 board list
 ```
+
+The fallback `board.config.json` is deliberately empty, so a repo without its
+own settings gets an error instead of silently writing to some other board.
+
+## Find or create a board
+
+Never assume a board exists or guess one by name. List what the owner has:
+
+```bash
+gh project list --owner <user-or-org>
+```
+
+If none fits the repo you're working in, or more than one might, ask before
+filing anything. To create one for a repo:
+
+```bash
+gh project create --owner <owner> --title "<Name>" --format json   # note the number
+gh project link <number> --owner <owner> --repo <owner>/<repo>
+```
+
+Then set `BOARD_ORG` and `BOARD_PROJECT` in that repo's `.claude/settings.json`
+(see above) and commit it with the repo. A new board starts with GitHub's default
+Status field (Todo, In Progress, Done); run `board fields` to see it.
 
 ## Requirements
 

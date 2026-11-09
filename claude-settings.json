@@ -21,6 +21,12 @@
     ],
     "defaultMode": "auto"
   },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Merging a GitHub PR with `gh pr merge` (never --admin) in a repo containing a .uh/ user harness with UH_AUTONOMY >= 2, when the harness `reviewer` subagent has posted a mergeable verdict on that same PR earlier in this session and its required checks pass"
+    ]
+  },
   "model": "opus",
   "hooks": {
     "Notification": [

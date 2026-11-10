@@ -30,6 +30,15 @@ case "$1" in
 		state=1
 		running=$(field '[.background_tasks[]? | select(.status == "running")] | length')
 		[ "${running:-0}" -gt 0 ] 2>/dev/null && state=bg
+		# A Notification has no background_tasks. Unless it asks you to act, it leaves a blue
+		# session blue: idle_prompt, for one, fires about a minute after every Stop.
+		if [ "$(field .hook_event_name)" = Notification ] &&
+			[ "$(tmux show -t "$session" -v @agent_waiting 2>/dev/null)" = bg ]; then
+			case "$(field .notification_type)" in
+				permission_prompt | elicitation_dialog | elicitation_url_dialog | agent_needs_input) ;;
+				*) state=bg ;;
+			esac
+		fi
 		subagents=$(field '[.background_tasks[]? | select(.status == "running" and .type == "subagent")] | length')
 		[ "$(field .hook_event_name)" = Stop ] && [ "${subagents:-1}" = 0 ] && rm -rf "$agents"
 		tmux set -t "$session" @agent_waiting "$state"

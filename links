@@ -3,6 +3,7 @@
 # A source ending in /* links each directory inside it into the target directory.
 
 .vimrc                   .vimrc
+tmux.conf                .tmux.conf           unix
 .gitconfig               .gitconfig
 .gitignore_global        .gitignore_global
 .zshenv                  .zshenv              unix

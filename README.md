@@ -107,6 +107,7 @@ doesn't leave a dangling link behind.
 | `starship.toml` | `~/.config/starship.toml` (Windows only) |
 | `powershell/profile.ps1` | `~/Documents/PowerShell/` and `~/Documents/WindowsPowerShell/` `Microsoft.PowerShell_profile.ps1` (Windows only) |
 | `.vimrc` | `~/.vimrc` |
+| `tmux.conf` | `~/.tmux.conf` (not on Windows): clickable session labels, orange when an agent is waiting on you |
 | `.gitconfig` | `~/.gitconfig` (includes `.gitconfig.local` last) |
 | `.gitignore_global` | `~/.gitignore_global` |
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` |

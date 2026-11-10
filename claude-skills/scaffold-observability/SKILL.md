@@ -36,9 +36,9 @@ Read the repo, don't guess, and record what you find:
 - **Telemetry already present:** loggers and their config, OTel packages, `OTEL_*` variables in
   config and `.env.example` (never read `.env`), Prometheus endpoints, vendor SDKs (Sentry,
   Datadog), a `.telemetry/` directory.
-- **User harness:** a `.uh/` directory means the repo runs the user harness, which already writes
-  into `.telemetry/runs/` (see "User harness" below). Its lines are an existing producer to keep
-  and ship, never to replace.
+- **User harness:** a `.uh/` directory means the repo runs the user harness, which produces events
+  through obs-harness's run library once `obs init` has installed it (see "User harness" below). Its
+  lines are an existing producer to keep and ship, never to replace.
 - **Data sensitivity:** secrets, tokens and personal data that could reach logs or traces.
 
 ## 2. Find shared and pre-existing services
@@ -80,20 +80,21 @@ same table is in the harness README ("Telemetry boundary"); keep the two in step
 | Concern | Owner |
 |---|---|
 | Harness events (what, when, fields) | user harness |
-| Run directory layout, `latest`, summary, query scripts | observability (this skill) |
-| Retention and rotation | observability |
-| Shipping to a backend, endpoints, credentials | observability |
-| Claude Code's own OTel settings | observability (T16) |
+| Run directory layout, `latest`, summary, query scripts | obs-harness (`obs init`; this skill) |
+| Retention and rotation | obs-harness |
+| Shipping to a backend, endpoints, credentials | obs-harness |
+| Claude Code's own OTel settings | obs-harness (T16) |
 | Test results file (JUnit) | the test runner; the harness's `junit_xml` slot points at it |
 
-What the harness writes: O6.2 log lines in `.telemetry/runs/<run>/logs.jsonl` of the main checkout
-(worktrees included), with `service: "user-harness"`, the event name in `msg`, and `uh.schema`
-versioning the fields. Each `scripts/verify` is a run: it honours `TELEMETRY_RUN_ID`, creates the run
-otherwise, exports `TELEMETRY_RUN_ID` to the test commands it runs, and points `latest` at the run.
-Each Claude session has a `<ts>_session-<id>` run that never moves `latest`. The harness ships
-nothing and deletes nothing, and its `report.py` reads its history from those `logs.jsonl` files, so they are
-the harness's own record, not part of the rotated view. They reach the canonical archive (O6.9) by conversion
-when the archive is written or sealed, never by OTLP export from the hooks.
+What the harness writes: O6.2 log lines with `service: "user-harness"`, the event name in `msg`, and
+`uh.schema` versioning the fields, appended through the project's `.obs/lib/obs_runs.py`. Without
+obs-harness installed the harness emits nothing and creates no `.telemetry/`, so run `obs init` first.
+Each `scripts/verify` takes its run from the library's `start_run` (which honours `TELEMETRY_RUN_ID` and
+points `latest` at it) and exports `TELEMETRY_RUN_ID` to the test commands it runs. Each Claude session
+writes to the library's `<ts>_session-<id>` run, which never moves `latest`. The harness ships nothing,
+deletes nothing and has no report of its own: obs-harness's `scripts/telemetry harness` replaces
+`report.py`. Harness lines reach the canonical archive (O6.9) by conversion when the archive is
+written or sealed, never by OTLP export from the hooks.
 
 Tickets in a harnessed repo follow this (step 5 adapts them):
 

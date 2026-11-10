@@ -113,7 +113,7 @@ doesn't leave a dangling link behind.
 | `CLAUDE.md` | `~/.claude/CLAUDE.md` |
 | `claude-settings.json` | `~/.claude/settings.json` |
 | `claude-hooks/` | Referenced from `claude-settings.json` |
-| `claude-skills/*` | `~/.claude/skills/*`, one link per skill |
+| `claude-skills/*` | `~/.claude/skills/*`, one link per skill. `scaffold-observability` and `observability-views` are links into `~/projects/obs-harness/skills/`; on a machine without that clone they dangle and `link.sh` prunes them |
 | `skills/` | `~/.skills`, skills loaded only on request |
 | `tools/gh-board/board` | `~/.local/bin/board` |
 | `tools/tnet/tnet` | `~/.local/bin/tnet` |

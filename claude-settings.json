@@ -167,6 +167,14 @@
             "command": "[ ! -x \"$HOME/.config/iterm2/cc-status\" ] || \"$HOME/.config/iterm2/cc-status\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.dotfiles/claude-hooks/tmux-turn.sh agent-stop"
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
@@ -183,6 +191,16 @@
           {
             "type": "command",
             "command": "$HOME/.dotfiles/claude-hooks/tmux-turn.sh off"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$HOME/.dotfiles/claude-hooks/tmux-turn.sh agent-start"
           }
         ]
       }

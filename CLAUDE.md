@@ -28,6 +28,8 @@ Personal defaults across all projects. A project's own CLAUDE.md overrides these
 - Don't report work as done because it looks right. Run the test, build, or linter and show the
   output.
 - If something can't be verified, say so explicitly rather than implying it was checked.
+- State each claim with the confidence its evidence supports, and end it with its status:
+  `(confirmed: <source or what was done>)` or `(unconfirmed)`.
 
 ## When the first attempt fails
 

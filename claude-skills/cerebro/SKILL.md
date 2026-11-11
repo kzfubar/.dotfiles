@@ -43,10 +43,14 @@ delete the old copy. Commit the new files.
 
 ```sh
 python .cerebro/cerebro_client.py kit update            # kits and client; a file you changed gets <file>.new beside it
-python .cerebro/cerebro_client.py kit remove <feature>
+python .cerebro/cerebro_client.py kit remove <feature> --dry-run   # then without --dry-run
 python .cerebro/cerebro_client.py detach --dry-run       # then without --dry-run
 ```
 
+`kit remove <feature>` also moves that feature's part of cerebro's store to its trash (restorable); for decisions
+it stops first, as detach does, while answers or questions wait unacked or drafts are unsent. Without a running
+cerebro it refuses unless `--local-only` (project side only).
+
 `detach` removes cerebro from both sides: it stops while answers or drafts wait in cerebro (record or discard them
-first, or pass `--yes`), moves the project's data in cerebro to its trash (restorable), and deletes every file the
+first, or pass `--yes`; an agent passes `--yes` only when the user asked for it, here and on `kit remove`), moves the project's data in cerebro to its trash (restorable), and deletes every file the
 kits installed, keeping files the project changed unless `--force`. The project's converter and its tickets stay.
